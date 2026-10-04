@@ -25,6 +25,7 @@ import {
   WAVEFORM_TYPES,
   createECGDataURL,
 } from './utils/sampleData';
+import { analyzeWaveform } from './utils/ecgAnalysis';
 
 const LOCAL_STORAGE_KEY = 'pulse_triage_records_v1';
 
@@ -67,6 +68,8 @@ export default function App() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const waveformAnalysis = analyzeWaveform(waveformType, heartRate);
+
   // Handle image upload from file or camera
   const handleFileUpload = (file: File) => {
     const reader = new FileReader();
@@ -76,6 +79,12 @@ export default function App() {
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleApplyAnalysisRecommendation = () => {
+    setTriageCategory(waveformAnalysis.severity);
+    const suffix = `\n\n[AI補助判定] ${waveformAnalysis.label} (${waveformAnalysis.confidence}% 確信度): ${waveformAnalysis.recommendation}`;
+    setNotes((prev) => (prev.trim() ? `${prev}${suffix}` : suffix.replace(/^\n\n/, '')));
   };
 
   // Quick sample loader
@@ -166,9 +175,15 @@ export default function App() {
   const countArtifact = records.filter((r) => r.triageCategory === 'artifact').length;
 
   return (
-    <div className="app-container">
-      {/* Top Header */}
-      <header className="app-header">
+    <div className="monitor-shell">
+      <div className="monitor-bezel">
+        <div className="monitor-header-bar">
+          <div className="monitor-title">Bedside Monitor • Lead II</div>
+        </div>
+
+        <div className="app-container monitor-screen">
+          {/* Top Header */}
+          <header className="app-header">
         <div className="brand-section">
           <div className="brand-icon-wrapper">
             <HeartPulse size={28} />
@@ -176,7 +191,7 @@ export default function App() {
           <div>
             <h1 className="brand-title">
               PulseTriage
-              <span className="badge-version">第1週MVP</span>
+              <span className="badge-version">第2週AI補助</span>
             </h1>
             <p className="brand-subtitle">
               病棟モニター心電図 異常波形判読・一次トリアージ支援
@@ -359,6 +374,39 @@ export default function App() {
                   value={heartRate || ''}
                   onChange={(e) => setHeartRate(Number(e.target.value))}
                 />
+              </div>
+            </div>
+
+            <div className="analysis-panel">
+              <div className="analysis-header">
+                <div>
+                  <div className="analysis-kicker">Week 2</div>
+                  <h3>波形解析補助</h3>
+                </div>
+                <span className={`analysis-confidence ${waveformAnalysis.severity}`}>
+                  {waveformAnalysis.confidence}%
+                </span>
+              </div>
+
+              <div className="analysis-summary">
+                <p className="analysis-label">{waveformAnalysis.label}</p>
+                <p className="analysis-description">{waveformAnalysis.summary}</p>
+              </div>
+
+              <ul className="analysis-cues">
+                {waveformAnalysis.cues.map((cue) => (
+                  <li key={cue}>{cue}</li>
+                ))}
+              </ul>
+
+              <div className="analysis-footer">
+                <div>
+                  <div className="analysis-recommendation-label">推奨アクション</div>
+                  <div className="analysis-recommendation-text">{waveformAnalysis.recommendation}</div>
+                </div>
+                <button type="button" className="btn-analysis" onClick={handleApplyAnalysisRecommendation}>
+                  判定を反映
+                </button>
               </div>
             </div>
 
@@ -619,54 +667,56 @@ export default function App() {
         </section>
       </div>
 
-      {/* Week 1 Milestone Completion Banner */}
-      <footer style={{ marginTop: '3.5rem', padding: '1.5rem', background: 'rgba(15, 23, 42, 0.5)', borderRadius: '12px', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
-          <FileCheck size={20} color="#10b981" />
-          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f8fafc' }}>
-            第1週スライス要件達成済み
-          </h3>
+          {/* Week 2 Milestone Banner */}
+          <footer style={{ marginTop: '3.5rem', padding: '1.5rem', background: 'rgba(15, 23, 42, 0.5)', borderRadius: '12px', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
+              <Sparkles size={20} color="#f59e0b" />
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f8fafc' }}>
+                第2週スライス: 波形解析支援を追加しました
+              </h3>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: '#94a3b8', maxWidth: '650px', margin: '0 auto' }}>
+              画像に対するAI補助判定のレイヤーを追加し、波形ごとの見立て・確信度・推奨アクションを表示します。最終判断は医療従事者が行う設計です。
+            </p>
+          </footer>
+
+          {/* Fullscreen ECG Modal Viewer */}
+          {modalImage && (
+            <div className="modal-backdrop" onClick={() => setModalImage(null)}>
+              <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                  <h3 className="modal-title">心電図 高解像度読影ビューワー</h3>
+                  <button
+                    type="button"
+                    className="btn-card-action"
+                    onClick={() => setModalImage(null)}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="modal-image-wrapper">
+                  <img src={modalImage} alt="心電図拡大表示" />
+                </div>
+
+                <div className="modal-footer">
+                  <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginRight: 'auto' }}>
+                    方眼紙仕様: 1小マス = 0.04秒 (1mm), 1大マス = 0.20秒 (5mm)
+                  </span>
+                  <button
+                    type="button"
+                    className="btn-submit"
+                    style={{ width: 'auto', padding: '0.5rem 1.25rem' }}
+                    onClick={() => setModalImage(null)}
+                  >
+                    閉じる
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-        <p style={{ fontSize: '0.8rem', color: '#94a3b8', maxWidth: '650px', margin: '0 auto' }}>
-          UI入力 ⇆ 写真アップロード・サジェスト ⇆ トリアージ分類 ⇆ データ永続化（localStorage / Supabase連携設計）の全層が貫通しています。
-        </p>
-      </footer>
-
-      {/* Fullscreen ECG Modal Viewer */}
-      {modalImage && (
-        <div className="modal-backdrop" onClick={() => setModalImage(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">心電図 高解像度読影ビューワー</h3>
-              <button
-                type="button"
-                className="btn-card-action"
-                onClick={() => setModalImage(null)}
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="modal-image-wrapper">
-              <img src={modalImage} alt="心電図拡大表示" />
-            </div>
-
-            <div className="modal-footer">
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginRight: 'auto' }}>
-                方眼紙仕様: 1小マス = 0.04秒 (1mm), 1大マス = 0.20秒 (5mm)
-              </span>
-              <button
-                type="button"
-                className="btn-submit"
-                style={{ width: 'auto', padding: '0.5rem 1.25rem' }}
-                onClick={() => setModalImage(null)}
-              >
-                閉じる
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
