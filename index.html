@@ -2,16 +2,75 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2306b6d4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z'/><path d='M3.22 12H9.5l1.5-3 2 6.5 1.5-4.5 1.5 2h3.28'/></svg>" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>PulseTriage - 心電図異常波形 判読・分類アシスタント</title>
-    <meta name="description" content="病棟モニター心電図用紙を撮影し、異常波形（PVC・AF・ST変化・ノイズ）を迅速にトリアージ・仕分けする看護師向けWebアプリケーション" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>心電図画像分類</title>
+    <meta name="description" content="心電図写真を入力し、異常波形を分類" />
+    <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <main class="app-shell">
+      <header class="page-header">
+        <div>
+          <p class="eyebrow">ECG IMAGE CLASSIFICATION</p>
+          <h1>心電図画像分類</h1>
+          <p class="page-description">心電図の写真を入力して、波形の分類結果を表示します。</p>
+        </div>
+      </header>
+
+      <div class="workspace">
+        <section class="input-panel" aria-labelledby="input-title">
+          <div class="section-heading">
+            <div>
+              <p class="step-label">01 / IMAGE INPUT</p>
+              <h2 id="input-title">心電図写真</h2>
+            </div>
+            <span class="section-index">入力</span>
+          </div>
+
+          <label class="upload-area" for="ecg-photo">
+            <span class="upload-symbol" aria-hidden="true">+</span>
+            <span class="upload-title">写真を撮影、または画像を選択</span>
+            <span class="upload-description">JPG・PNG 形式の心電図画像</span>
+            <span class="upload-action">画像ファイルを選択</span>
+            <input id="ecg-photo" name="ecg-photo" type="file" accept="image/*" capture="environment" />
+          </label>
+
+          <div class="image-preview" aria-label="画像プレビュー欄">
+            <span class="preview-label">IMAGE PREVIEW</span>
+            <p>選択した画像のプレビューがここに表示されます</p>
+          </div>
+
+    
+        </section>
+
+        <section class="result-panel" aria-labelledby="result-title">
+          <div class="section-heading">
+            <div>
+              <p class="step-label">02 / CLASSIFICATION</p>
+              <h2 id="result-title">分類結果</h2>
+            </div>
+            <span class="result-state">未解析</span>
+          </div>
+
+          <div class="result-placeholder">
+            <span class="placeholder-rule"></span>
+            <h3>解析結果はまだありません</h3>
+            <p>画像解析モデルを接続すると、判定された波形分類と判定根拠を表示します。</p>
+          </div>
+
+          <div class="classification-list">
+            <h3>分類対象</h3>
+            <ul>
+              <li><span>心房細動</span><span>AF</span></li>
+              <li><span>心室期外収縮</span><span>PVC</span></li>
+              <li><span>ST変化</span><span>ST</span></li>
+              <li><span>ノイズ・判定困難</span><span>OTHER</span></li>
+            </ul>
+          </div>
+
+          <p class="disclaimer">この画面は試作です。現在、画像の自動分類や医療上の判定は行いません。</p>
+        </section>
+      </div>
+    </main>
   </body>
 </html>
