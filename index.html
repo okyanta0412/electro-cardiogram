@@ -30,17 +30,23 @@
           <label class="upload-area" for="ecg-photo">
             <span class="upload-symbol" aria-hidden="true">+</span>
             <span class="upload-title">写真を撮影、または画像を選択</span>
-            <span class="upload-description">JPG・PNG 形式の心電図画像</span>
+            <span id="upload-help" class="upload-description">JPG・PNG 形式、最大10MB</span>
             <span class="upload-action">画像ファイルを選択</span>
-            <input id="ecg-photo" name="ecg-photo" type="file" accept="image/*" capture="environment" />
+            <input id="ecg-photo" name="ecg-photo" type="file" accept="image/jpeg,image/png" capture="environment" aria-describedby="upload-help input-message" />
           </label>
+          <p id="input-message" class="input-message" role="status" aria-live="polite">画像を選択してください。</p>
 
           <div class="image-preview" aria-label="画像プレビュー欄">
             <span class="preview-label">IMAGE PREVIEW</span>
-            <p>選択した画像のプレビューがここに表示されます</p>
+            <p id="preview-empty" class="preview-empty">選択した画像のプレビューがここに表示されます</p>
+            <img id="preview-image" class="preview-image" alt="選択した心電図画像" hidden />
+            <div id="preview-meta" class="preview-meta" hidden>
+              <span id="preview-filename"></span>
+              <button id="remove-image" class="text-button" type="button">画像を削除</button>
+            </div>
           </div>
-
-    
+          <button id="analyze-button" class="analyze-button" type="button" disabled>AI解析を実行</button>
+          <p id="analysis-message" class="analysis-message" role="status" aria-live="polite">画像を選択すると、解析の準備状態を確認できます。</p>
         </section>
 
         <section class="result-panel" aria-labelledby="result-title">
@@ -49,13 +55,13 @@
               <p class="step-label">02 / CLASSIFICATION</p>
               <h2 id="result-title">分類結果</h2>
             </div>
-            <span class="result-state">未解析</span>
+            <span id="result-state" class="result-state" data-state="idle">未解析</span>
           </div>
 
           <div class="result-placeholder">
             <span class="placeholder-rule"></span>
-            <h3>解析結果はまだありません</h3>
-            <p>画像解析モデルを接続すると、判定された波形分類と判定根拠を表示します。</p>
+            <h3 id="result-title">解析結果はまだありません</h3>
+            <p id="result-description">画像解析モデルを接続すると、判定された波形分類と判定根拠を表示します。</p>
           </div>
 
           <div class="classification-list">
@@ -72,5 +78,6 @@
         </section>
       </div>
     </main>
+    <script src="./script.js" defer></script>
   </body>
 </html>

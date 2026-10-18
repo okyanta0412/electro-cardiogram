@@ -200,6 +200,97 @@ h1 {
   text-align: center;
 }
 
+.input-message,
+.analysis-message {
+  min-height: 1.5em;
+  margin: 8px 0 14px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.input-message[data-state="error"],
+.analysis-message[data-state="error"] {
+  color: var(--alert);
+}
+
+.image-preview {
+  gap: 14px;
+}
+
+.preview-empty {
+  align-self: center;
+  margin: 24px 0;
+  color: #7b817e;
+  font-size: 13px;
+  text-align: center;
+}
+
+.preview-image {
+  display: block;
+  max-width: 100%;
+  max-height: min(52vh, 520px);
+  margin: 0 auto;
+  object-fit: contain;
+}
+
+.preview-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.text-button {
+  flex: 0 0 auto;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.analyze-button {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 16px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: white;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.analyze-button:disabled {
+  border-color: #c4cbc7;
+  background: #d8ddda;
+  color: #747c7a;
+  cursor: not-allowed;
+}
+
+.analyze-button:focus-visible,
+.text-button:focus-visible,
+.upload-area:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.result-state[data-state="unavailable"] {
+  border-color: #d8b8b3;
+  background: #f5e9e7;
+  color: var(--alert);
+}
+
+[hidden] {
+  display: none !important;
+}
+
 
 .result-state {
   padding: 5px 8px;
