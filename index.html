@@ -13,7 +13,7 @@
         <div>
           <p class="eyebrow">ECG IMAGE CLASSIFICATION</p>
           <h1>心電図画像分類</h1>
-          <p class="page-description">心電図の写真を入力して、波形の分類結果を表示します。</p>
+          <p class="page-description">心電図写真1枚につき、主な分類を1つ表示する想定です。</p>
         </div>
       </header>
 
@@ -65,12 +65,13 @@
           </div>
 
           <div class="classification-list">
-            <h3>分類対象</h3>
+            <h3>分類ラベル（1画像につき1つ）</h3>
             <ul>
+              <li><span>正常・対象所見なし</span><span>NORMAL</span></li>
               <li><span>心房細動</span><span>AF</span></li>
               <li><span>心室期外収縮</span><span>PVC</span></li>
-              <li><span>ST変化</span><span>ST</span></li>
-              <li><span>ノイズ・判定困難</span><span>OTHER</span></li>
+              <li><span>ST-T変化</span><span>STTC</span></li>
+              <li><span>判定困難・画像不良</span><span>UNREADABLE</span></li>
             </ul>
           </div>
 
