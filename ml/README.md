@@ -98,17 +98,15 @@ Train and evaluate the model:
 ml/.venv/bin/python ml/monitor_photo_classifier.py
 ```
 
-Run the API and static page in separate terminals from the project root:
+Run the combined local page and API from the project root:
 
 ```sh
 ml/.venv/bin/python ml/serve_photo_classifier.py
 ```
 
-```sh
-python3 -m http.server 8000
-```
+Open `http://localhost:8765`. The server binds to loopback by default and does not save uploaded image files.
 
-Open `http://localhost:8000`, select a photo and run the classification. The API binds to `127.0.0.1:8765` and does not persist uploaded images.
+For public hosting, the repository includes a Dockerfile and Render Blueprint (`render.yaml`). Connect this GitHub repository in Render as a Blueprint and apply the `ecg-photo-classifier` web service. Render will provide the public HTTPS URL after deployment; the URL cannot be known until Render creates the service. The free instance may sleep when idle and have a cold start. Uploaded photos are sent to the host for processing; do not upload images containing personal or patient information. The application does not write uploaded image files to disk.
 
 Current patient-grouped signal accuracy is 0.318 (balanced accuracy 0.285). This evaluation does not include photo extraction. PVC has only eight examples. The UI/API path works, but this model is not validated for photo classification and must not be used for clinical decisions.
 

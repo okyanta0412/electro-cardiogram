@@ -1,6 +1,6 @@
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png"]);
-const CLASSIFY_URL = "http://127.0.0.1:8765/api/classify";
+const CLASSIFY_URL = "/api/classify";
 const LABEL_NAMES = {
   NORMAL: "正常・対象所見なし",
   AF: "心房細動",
@@ -129,7 +129,7 @@ removeImageButton.addEventListener("click", () => {
   releasePreview();
   fileInput.value = "";
   setMessage(inputMessage, "画像を選択してください。", "idle");
-  setMessage(analysisMessage, "ローカル分類APIを起動してから画像を分類してください。", "idle");
+  setMessage(analysisMessage, "分類APIに接続して画像を分類してください。", "idle");
   resetResult();
 });
 
@@ -142,7 +142,7 @@ analyzeButton.addEventListener("click", async () => {
   resultState.dataset.state = "working";
   resultTitle.textContent = "画像を分類しています";
   resultDescription.textContent = "Lead IIの波形抽出と試作モデルの推論を実行中です。";
-  setMessage(analysisMessage, "ローカル分類APIへ画像を送信しています…", "checking");
+  setMessage(analysisMessage, "分類APIへ画像を送信しています…", "checking");
 
   try {
     const image = await readAsDataUrl(selectedFile);
@@ -154,7 +154,7 @@ analyzeButton.addEventListener("click", async () => {
         body: JSON.stringify({ image }),
       });
     } catch {
-      throw new Error("分類APIに接続できません。APIサーバーが起動しているか確認してください。");
+      throw new Error("分類APIに接続できません。通信状態を確認してください。");
     }
     const payload = await response.json();
     if (!response.ok) {

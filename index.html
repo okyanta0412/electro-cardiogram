@@ -46,7 +46,7 @@
             </div>
           </div>
           <button id="analyze-button" class="analyze-button" type="button" disabled>AI解析を実行</button>
-          <p id="analysis-message" class="analysis-message" role="status" aria-live="polite">ローカル分類APIを起動してから画像を分類してください。</p>
+          <p id="analysis-message" class="analysis-message" role="status" aria-live="polite">分類APIに接続して画像を分類してください。</p>
         </section>
 
         <section class="result-panel" aria-labelledby="result-section-title">
@@ -75,7 +75,7 @@
             </ul>
           </div>
 
-          <p class="disclaimer">PAC候補検出は数値信号評価で再現率0.118でした。写真上の精度は未検証です。研究用デモのため、医療上の判断に使用しないでください。</p>
+          <p class="disclaimer">画像は分類のためサーバーへ送信されます。個人情報を含む画像は送らないでください。PAC候補検出は数値信号評価で再現率0.118でした。写真上の精度は未検証で、医療上の判断に使用しないでください。</p>
         </section>
       </div>
     </main>

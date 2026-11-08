@@ -4,9 +4,14 @@ import argparse
 import base64
 import binascii
 import json
+import mimetypes
+import os
+import threading
+import time
+from collections import defaultdict, deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlsplit
 
 import cv2
 import joblib
@@ -17,6 +22,16 @@ from monitor_photo_classifier import MODEL_PATH, extract_features_from_image
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 MAX_REQUEST_BYTES = 14 * 1024 * 1024
+MAX_IMAGE_PIXELS = 25_000_000
+RATE_LIMIT_REQUESTS = 20
+RATE_LIMIT_WINDOW_SECONDS = 60
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+STATIC_FILES = {
+    "/": PROJECT_ROOT / "index.html",
+    "/index.html": PROJECT_ROOT / "index.html",
+    "/style.css": PROJECT_ROOT / "style.css",
+    "/script.js": PROJECT_ROOT / "script.js",
+}
 PAC_MODEL_PATH = Path(__file__).resolve().parent / "models" / "pac_detector.joblib"
 WARNING = (
     "研究用試作です。PAC候補は数値信号のみで評価した別検出器の出力で、"
@@ -25,33 +40,64 @@ WARNING = (
 
 
 def make_handler(classifier, pac_detector):
+    requests_by_client: dict[str, deque[float]] = defaultdict(deque)
+    rate_limit_lock = threading.Lock()
+
     class PhotoClassifierHandler(BaseHTTPRequestHandler):
         def send_json(self, status: int, payload: dict[str, object]) -> None:
             body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("X-Content-Type-Options", "nosniff")
             self.end_headers()
             self.wfile.write(body)
+
+        def allow_request(self) -> bool:
+            now = time.monotonic()
+            client = self.client_address[0]
+            with rate_limit_lock:
+                recent_requests = requests_by_client[client]
+                while recent_requests and now - recent_requests[0] > RATE_LIMIT_WINDOW_SECONDS:
+                    recent_requests.popleft()
+                if len(recent_requests) >= RATE_LIMIT_REQUESTS:
+                    return False
+                recent_requests.append(now)
+            return True
 
         def do_OPTIONS(self) -> None:
             self.send_json(204, {})
 
         def do_GET(self) -> None:
-            if self.path != "/api/health":
+            request_path = unquote(urlsplit(self.path).path)
+            if request_path == "/api/health":
+                self.send_json(
+                    200,
+                    {"ready": True, "labels": [*classifier.classes_.tolist(), "PAC"], "warning": WARNING},
+                )
+                return
+            static_path = STATIC_FILES.get(request_path)
+            if static_path is None:
                 self.send_json(404, {"error": "Not found"})
                 return
-            self.send_json(
-                200,
-                {"ready": True, "labels": [*classifier.classes_.tolist(), "PAC"], "warning": WARNING},
-            )
+            body = static_path.read_bytes()
+            content_type = mimetypes.guess_type(static_path.name)[0] or "application/octet-stream"
+            if content_type.startswith("text/") or content_type == "application/javascript":
+                content_type += "; charset=utf-8"
+            self.send_response(200)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.end_headers()
+            self.wfile.write(body)
 
         def do_POST(self) -> None:
             if self.path != "/api/classify":
                 self.send_json(404, {"error": "Not found"})
+                return
+            if not self.allow_request():
+                self.send_json(429, {"error": "Too many requests. Try again in a minute."})
                 return
             try:
                 content_length = int(self.headers.get("Content-Length", "0"))
@@ -68,6 +114,9 @@ def make_handler(classifier, pac_detector):
                 image = cv2.imdecode(np.frombuffer(image_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
                 if image is None:
                     self.send_json(422, {"error": "Could not decode the uploaded image."})
+                    return
+                if image.shape[0] * image.shape[1] > MAX_IMAGE_PIXELS:
+                    self.send_json(413, {"error": "Image dimensions exceed the 25 megapixel limit."})
                     return
 
                 features = extract_features_from_image(image).reshape(1, -1)
@@ -96,8 +145,8 @@ def make_handler(classifier, pac_detector):
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Serve the local ECG photo-classification demo API.")
-    parser.add_argument("--host", default="127.0.0.1", help="Bind address; keep this on loopback for local demo use.")
+    parser = argparse.ArgumentParser(description="Serve the ECG photo-classification demo and API.")
+    parser.add_argument("--host", default="127.0.0.1", help="Bind address; use 0.0.0.0 inside a deployment container.")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--model", type=Path, default=MODEL_PATH)
     parser.add_argument("--pac-model", type=Path, default=PAC_MODEL_PATH)
@@ -109,11 +158,12 @@ def main() -> None:
 
     artifact = joblib.load(args.model)
     pac_detector = joblib.load(args.pac_model)
+    port = int(os.environ.get("PORT", args.port))
     server = ThreadingHTTPServer(
-        (args.host, args.port),
+        (args.host, port),
         make_handler(artifact["classifier"], pac_detector),
     )
-    print(f"ECG photo demo API ready at http://{args.host}:{args.port}/api/health")
+    print(f"ECG photo demo ready at http://{args.host}:{port}/")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
