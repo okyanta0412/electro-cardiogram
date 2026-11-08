@@ -287,6 +287,18 @@ h1 {
   color: var(--alert);
 }
 
+.result-state[data-state="demo"] {
+  border-color: #c89b5b;
+  background: #f5efe3;
+  color: #76551f;
+}
+
+.result-state[data-state="working"] {
+  border-color: #8fa9a2;
+  background: var(--accent-pale);
+  color: var(--accent);
+}
+
 [hidden] {
   display: none !important;
 }

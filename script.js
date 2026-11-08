@@ -1,5 +1,12 @@
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png"]);
+const CLASSIFY_URL = "http://127.0.0.1:8765/api/classify";
+const LABEL_NAMES = {
+  NORMAL: "正常・対象所見なし",
+  AF: "心房細動",
+  PVC: "心室期外収縮",
+  PAC: "心房性期外収縮候補",
+};
 
 const fileInput = document.querySelector("#ecg-photo");
 const inputMessage = document.querySelector("#input-message");
@@ -38,6 +45,22 @@ function releasePreview() {
   analyzeButton.disabled = true;
 }
 
+function resetResult() {
+  resultState.textContent = "未解析";
+  resultState.dataset.state = "idle";
+  resultTitle.textContent = "解析結果はまだありません";
+  resultDescription.textContent = "Lead II波形を3分類モデルとPAC候補検出器で処理します。";
+}
+
+function readAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(reader.result), { once: true });
+    reader.addEventListener("error", () => reject(new Error("画像を読み込めませんでした。")), { once: true });
+    reader.readAsDataURL(file);
+  });
+}
+
 function showInvalidFile(message) {
   setMessage(inputMessage, message, "error");
   setMessage(analysisMessage, "有効な画像を選択してください。", "error");
@@ -51,10 +74,7 @@ async function handleFileSelection() {
   releasePreview();
   setMessage(inputMessage, "画像を確認しています…", "checking");
   setMessage(analysisMessage, "", "idle");
-  resultState.textContent = "未解析";
-  resultState.dataset.state = "idle";
-  resultTitle.textContent = "解析結果はまだありません";
-  resultDescription.textContent = "画像解析モデルを接続すると、判定された波形分類と判定根拠を表示します。";
+  resetResult();
 
   if (!ALLOWED_TYPES.has(file.type)) {
     showInvalidFile("JPEG または PNG 形式の画像を選択してください。");
@@ -99,7 +119,7 @@ async function handleFileSelection() {
   previewMeta.hidden = false;
   analyzeButton.disabled = false;
   setMessage(inputMessage, "画像を読み込みました。内容を確認してください。", "success");
-  setMessage(analysisMessage, "写真の選択と確認が完了しました。", "ready");
+  setMessage(analysisMessage, "分類の準備ができました。出力は研究用試作です。", "ready");
 }
 
 fileInput.addEventListener("change", handleFileSelection);
@@ -109,21 +129,60 @@ removeImageButton.addEventListener("click", () => {
   releasePreview();
   fileInput.value = "";
   setMessage(inputMessage, "画像を選択してください。", "idle");
-  setMessage(analysisMessage, "画像を選択すると、解析の準備状態を確認できます。", "idle");
-  resultState.textContent = "未解析";
-  resultState.dataset.state = "idle";
-  resultTitle.textContent = "解析結果はまだありません";
-  resultDescription.textContent = "画像解析モデルを接続すると、判定された波形分類と判定根拠を表示します。";
+  setMessage(analysisMessage, "ローカル分類APIを起動してから画像を分類してください。", "idle");
+  resetResult();
 });
 
-analyzeButton.addEventListener("click", () => {
+analyzeButton.addEventListener("click", async () => {
   if (!selectedFile) return;
 
-  resultState.textContent = "未接続";
-  resultState.dataset.state = "unavailable";
-  resultTitle.textContent = "AI解析はまだ利用できません";
-  resultDescription.textContent = "画像は確認できました。分類結果を出すには、後で解析 API と学習済みモデルを接続してください。";
-  setMessage(analysisMessage, "画像の準備は完了していますが、AI解析エンジンは未接続です。", "error");
+  const currentVersion = validationVersion;
+  analyzeButton.disabled = true;
+  resultState.textContent = "分類中";
+  resultState.dataset.state = "working";
+  resultTitle.textContent = "画像を分類しています";
+  resultDescription.textContent = "Lead IIの波形抽出と試作モデルの推論を実行中です。";
+  setMessage(analysisMessage, "ローカル分類APIへ画像を送信しています…", "checking");
+
+  try {
+    const image = await readAsDataUrl(selectedFile);
+    let response;
+    try {
+      response = await fetch(CLASSIFY_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image }),
+      });
+    } catch {
+      throw new Error("分類APIに接続できません。APIサーバーが起動しているか確認してください。");
+    }
+    const payload = await response.json();
+    if (!response.ok) {
+      const detail = payload.error || "画像を分類できませんでした。";
+      if (response.status === 413) throw new Error(`画像サイズの上限を超えています。${detail}`);
+      if (response.status === 422 && detail.startsWith("Could not isolate a high-contrast waveform")) {
+        throw new Error("背景から波形を分離できません。波形を1本に切り取り、反射や方眼の少ない写真をお試しください。");
+      }
+      if (response.status === 422) throw new Error(`この画像を処理できません。${detail}`);
+      throw new Error(detail);
+    }
+    if (currentVersion !== validationVersion) return;
+
+    resultState.textContent = "試作判定";
+    resultState.dataset.state = "demo";
+    resultTitle.textContent = `${LABEL_NAMES[payload.label] || "判定不能"}（${payload.label || "UNREADABLE"}）`;
+    resultDescription.textContent = payload.warning || "研究用試作の出力です。医療上の判断に使用しないでください。";
+    setMessage(analysisMessage, "分類処理が完了しました。結果は未検証の試作出力です。", "success");
+  } catch (error) {
+    if (currentVersion !== validationVersion) return;
+    resultState.textContent = "判定できません";
+    resultState.dataset.state = "unavailable";
+    resultTitle.textContent = "分類を完了できませんでした";
+    resultDescription.textContent = error instanceof Error ? error.message : "分類APIに接続できません。";
+    setMessage(analysisMessage, error instanceof Error ? error.message : "分類APIに接続できません。", "error");
+  } finally {
+    if (currentVersion === validationVersion && selectedFile) analyzeButton.disabled = false;
+  }
 });
 
 window.addEventListener("beforeunload", releasePreview);

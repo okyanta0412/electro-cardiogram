@@ -9,15 +9,16 @@ import numpy as np
 
 
 ROOT = Path(__file__).resolve().parent
-MODEL_PATH = ROOT / "models" / "af_st_signal_models.joblib"
-EXPECTED_SHAPE = (1000, 12)
+MODEL_PATH = ROOT / "models" / "af_st_lead_ii_signal_models.joblib"
+EXPECTED_SHAPE = (1000, 1)
+EXPECTED_LEADS = ("II",)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Predict AFIB and STTC for one PTB-XL-shaped 12-lead numerical ECG signal."
+        description="Predict AFIB and STTC for one PTB-XL-shaped Lead II numerical ECG signal."
     )
-    parser.add_argument("signal", type=Path, help="Path to a cached NPZ containing a 1000x12 'signal' array")
+    parser.add_argument("signal", type=Path, help="Path to a cached NPZ containing a 1000x1 Lead II signal")
     args = parser.parse_args()
 
     if not MODEL_PATH.exists():
@@ -25,8 +26,11 @@ def main() -> None:
 
     with np.load(args.signal) as source:
         signal = source["signal"].astype(np.float32)
+        lead_names = tuple(str(name) for name in source["lead_names"])
     if signal.shape != EXPECTED_SHAPE:
-        raise SystemExit(f"Expected a {EXPECTED_SHAPE[0]}x{EXPECTED_SHAPE[1]} numerical signal, got {signal.shape}.")
+        raise SystemExit(f"Expected a {EXPECTED_SHAPE[0]}x{EXPECTED_SHAPE[1]} Lead II signal, got {signal.shape}.")
+    if lead_names != EXPECTED_LEADS:
+        raise SystemExit(f"Expected leads {EXPECTED_LEADS}, got {lead_names}.")
 
     models = joblib.load(MODEL_PATH)
     features = signal.reshape(1, -1)

@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>心電図画像分類</title>
-    <meta name="description" content="心電図写真を入力し、異常波形を分類" />
+    <title>単一誘導モニター画像分類</title>
+    <meta name="description" content="病院モニターに表示されたLead II心電図写真を分類する試作" />
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
@@ -12,8 +12,8 @@
       <header class="page-header">
         <div>
           <p class="eyebrow">ECG IMAGE CLASSIFICATION</p>
-          <h1>心電図画像分類</h1>
-          <p class="page-description">心電図写真1枚につき、主な分類を1つ表示する想定です。</p>
+          <h1>単一誘導モニター画像分類</h1>
+          <p class="page-description">病院モニターに表示されたLead IIの波形写真を分類する試作です。</p>
         </div>
       </header>
 
@@ -22,15 +22,15 @@
           <div class="section-heading">
             <div>
               <p class="step-label">01 / IMAGE INPUT</p>
-              <h2 id="input-title">心電図写真</h2>
+              <h2 id="input-title">Lead IIモニター写真</h2>
             </div>
             <span class="section-index">入力</span>
           </div>
 
           <label class="upload-area" for="ecg-photo">
             <span class="upload-symbol" aria-hidden="true">+</span>
-            <span class="upload-title">写真を撮影、または画像を選択</span>
-            <span id="upload-help" class="upload-description">JPG・PNG 形式、最大10MB</span>
+            <span class="upload-title">Lead IIの波形が見えるモニター画面を撮影</span>
+            <span id="upload-help" class="upload-description">背景と高いコントラストの単一波形 / JPG・PNG、最大10MB</span>
             <span class="upload-action">画像ファイルを選択</span>
             <input id="ecg-photo" name="ecg-photo" type="file" accept="image/jpeg,image/png" capture="environment" aria-describedby="upload-help input-message" />
           </label>
@@ -38,22 +38,22 @@
 
           <div class="image-preview" aria-label="画像プレビュー欄">
             <span class="preview-label">IMAGE PREVIEW</span>
-            <p id="preview-empty" class="preview-empty">選択した画像のプレビューがここに表示されます</p>
-            <img id="preview-image" class="preview-image" alt="選択した心電図画像" hidden />
+            <p id="preview-empty" class="preview-empty">選択したモニター写真のプレビューがここに表示されます</p>
+            <img id="preview-image" class="preview-image" alt="選択したLead IIモニター写真" hidden />
             <div id="preview-meta" class="preview-meta" hidden>
               <span id="preview-filename"></span>
               <button id="remove-image" class="text-button" type="button">画像を削除</button>
             </div>
           </div>
           <button id="analyze-button" class="analyze-button" type="button" disabled>AI解析を実行</button>
-          <p id="analysis-message" class="analysis-message" role="status" aria-live="polite">画像を選択すると、解析の準備状態を確認できます。</p>
+          <p id="analysis-message" class="analysis-message" role="status" aria-live="polite">ローカル分類APIを起動してから画像を分類してください。</p>
         </section>
 
-        <section class="result-panel" aria-labelledby="result-title">
+        <section class="result-panel" aria-labelledby="result-section-title">
           <div class="section-heading">
             <div>
               <p class="step-label">02 / CLASSIFICATION</p>
-              <h2 id="result-title">分類結果</h2>
+              <h2 id="result-section-title">分類結果</h2>
             </div>
             <span id="result-state" class="result-state" data-state="idle">未解析</span>
           </div>
@@ -61,21 +61,21 @@
           <div class="result-placeholder">
             <span class="placeholder-rule"></span>
             <h3 id="result-title">解析結果はまだありません</h3>
-            <p id="result-description">画像解析モデルを接続すると、判定された波形分類と判定根拠を表示します。</p>
+            <p id="result-description">Lead II波形を3分類モデルとPAC候補検出器で処理します。</p>
           </div>
 
           <div class="classification-list">
-            <h3>分類ラベル（1画像につき1つ）</h3>
+            <h3>分類ラベル（写真1枚につき主分類を1つ）</h3>
             <ul>
               <li><span>正常・対象所見なし</span><span>NORMAL</span></li>
               <li><span>心房細動</span><span>AF</span></li>
               <li><span>心室期外収縮</span><span>PVC</span></li>
-              <li><span>ST-T変化</span><span>STTC</span></li>
+              <li><span>PAC候補（心房性期外収縮）</span><span>PAC</span></li>
               <li><span>判定困難・画像不良</span><span>UNREADABLE</span></li>
             </ul>
           </div>
 
-          <p class="disclaimer">この画面は試作です。現在、画像の自動分類や医療上の判定は行いません。</p>
+          <p class="disclaimer">PAC候補検出は数値信号評価で再現率0.118でした。写真上の精度は未検証です。研究用デモのため、医療上の判断に使用しないでください。</p>
         </section>
       </div>
     </main>

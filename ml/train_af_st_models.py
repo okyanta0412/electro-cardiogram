@@ -20,14 +20,17 @@ from sklearn.svm import LinearSVC
 
 ROOT = Path(__file__).resolve().parent
 RAW_DIR = ROOT / "data" / "raw"
-CACHE_DIR = RAW_DIR / "ptbxl_cache"
+CACHE_DIR = RAW_DIR / "ptbxl_cache_lead_II"
+LEGACY_CACHE_DIRS = (RAW_DIR / "ptbxl_cache_3lead", RAW_DIR / "ptbxl_cache")
 OUTPUT_DIR = ROOT / "models"
 METADATA_URL = "https://physionet.org/files/ptb-xl/1.0.3/ptbxl_database.csv"
 STATEMENTS_URL = "https://physionet.org/files/ptb-xl/1.0.3/scp_statements.csv"
 DATABASE_PATH = RAW_DIR / "ptbxl_database.csv"
 STATEMENTS_PATH = RAW_DIR / "scp_statements.csv"
-MODELS_PATH = OUTPUT_DIR / "af_st_signal_models.joblib"
-METRICS_PATH = OUTPUT_DIR / "af_st_signal_metrics.json"
+MODELS_PATH = OUTPUT_DIR / "af_st_lead_ii_signal_models.joblib"
+METRICS_PATH = OUTPUT_DIR / "af_st_lead_ii_signal_metrics.json"
+INPUT_LEADS = ("II",)
+PTBXL_LEADS = ("I", "II", "III", "AVR", "AVL", "AVF", "V1", "V2", "V3", "V4", "V5", "V6")
 MODEL_TASKS = {"AFIB": "AFIB", "STTC": "STTC"}
 MAX_TRAIN_POSITIVES = 20
 MAX_TEST_POSITIVES = 10
@@ -110,7 +113,26 @@ def load_signal(row: pd.Series) -> np.ndarray:
     cache_path = CACHE_DIR / f"{ecg_id}.npz"
     if cache_path.exists():
         with np.load(cache_path) as cached:
-            return cached["signal"].astype(np.float32)
+            signal = cached["signal"].astype(np.float32)
+            lead_names = tuple(str(name) for name in cached["lead_names"])
+        if signal.shape != (1000, 1) or lead_names != INPUT_LEADS:
+            raise RuntimeError(f"Unexpected Lead II cache format for ECG record {ecg_id}.")
+        return signal
+
+    for legacy_cache_dir in LEGACY_CACHE_DIRS:
+        legacy_cache = legacy_cache_dir / f"{ecg_id}.npz"
+        if not legacy_cache.exists():
+            continue
+        with np.load(legacy_cache) as cached:
+            full_signal = cached["signal"].astype(np.float32)
+            cache_leads = tuple(str(name) for name in cached["lead_names"]) if "lead_names" in cached else PTBXL_LEADS
+        if full_signal.ndim != 2 or full_signal.shape[0] != 1000 or full_signal.shape[1] != len(cache_leads):
+            continue
+        indices = [cache_leads.index(lead) for lead in INPUT_LEADS]
+        signal = full_signal[:, indices]
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(cache_path, signal=signal, lead_names=np.asarray(INPUT_LEADS))
+        return signal
 
     record_path = Path(str(row.filename_lr))
     remote_directory = f"ptb-xl/1.0.3/{record_path.parent.as_posix()}"
@@ -127,9 +149,13 @@ def load_signal(row: pd.Series) -> np.ndarray:
     if record.p_signal is None or record.p_signal.shape != (1000, 12):
         raise RuntimeError(f"Unexpected waveform shape for ECG record {ecg_id}.")
 
-    signal = np.nan_to_num(record.p_signal, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
+    lead_indices = [record.sig_name.index(lead) for lead in INPUT_LEADS]
+    selected_leads = [record.sig_name[index] for index in lead_indices]
+    if tuple(selected_leads) != INPUT_LEADS:
+        raise RuntimeError(f"Could not select lead order {INPUT_LEADS} for ECG record {ecg_id}.")
+    signal = np.nan_to_num(record.p_signal[:, lead_indices], nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(cache_path, signal=signal)
+    np.savez_compressed(cache_path, signal=signal, lead_names=np.asarray(INPUT_LEADS))
     return signal
 
 
@@ -188,7 +214,8 @@ def evaluate_task(
     )
     metrics = {
         "positive_label": target,
-        "signal_input_shape": [1000, 12],
+        "signal_input_shape": [1000, 1],
+        "input_leads": list(INPUT_LEADS),
         "train_samples": int(train_mask.sum()),
         "test_samples": int(test_mask.sum()),
         "train_ecg_ids": ecg_ids[train_mask].tolist(),
@@ -212,7 +239,7 @@ def main() -> None:
     models = {}
     results = {
         "dataset": "PTB-XL 1.0.3",
-        "input": "12-lead 100 Hz numerical signals, 10 seconds",
+        "input": "Lead II only; 100 Hz numerical signal, 10 seconds",
         "train_folds": sorted(train_folds),
         "held_out_folds": sorted(test_folds),
         "metadata_rows_used": int(len(metadata)),

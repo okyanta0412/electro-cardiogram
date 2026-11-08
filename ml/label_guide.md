@@ -1,10 +1,10 @@
-# ECG photo label guide (prototype)
+# Single-lead bedside monitor photo label guide (prototype)
 
-This guide defines one mutually exclusive label for each ECG photo/crop used by a future image-classification model. Labels must come from a trusted dataset annotation or qualified human review; do not infer labels from this prototype's prediction.
+This guide defines one mutually exclusive label for each photo analyzed as one ECG trace: Lead II. If a photo shows standard I/II/III rows, use only the middle Lead II row; if it shows one row, its label must be confirmed as Lead II. Other layouts are outside this prototype's input. This is not a 3x4 twelve-lead paper ECG task. Labels must come from a trusted dataset annotation or qualified human review; do not infer them from this prototype's prediction.
 
 ## Unit of classification
 
-One image is one classification example and receives exactly one label. Use a crop/strip that contains enough context for its target label. A single isolated beat is not sufficient evidence for an AF label. If multiple target findings are present, the example is mixed and is excluded from this first single-label dataset rather than forcing a label choice.
+One monitor photo is one classification example and receives exactly one label. The complete Lead II trace and enough consecutive beats must be visible. A single isolated beat is not sufficient evidence for an AF label. If multiple target findings are present, the example is mixed and is excluded from this first single-label dataset rather than forcing a label choice. Record the monitor sweep speed and gain when available.
 
 ## Labels
 
@@ -14,7 +14,7 @@ One image is one classification example and receives exactly one label. Use a cr
 | `AF` | The source annotation or qualified reviewer confirms atrial fibrillation, and the image contains enough consecutive beats to represent the rhythm. |
 | `PVC` | The source annotation or qualified reviewer confirms a ventricular premature beat in the target crop. |
 | `STTC` | The source annotation or qualified reviewer confirms a target ST/T change in the shown lead(s). |
-| `UNREADABLE` | The image is not an ECG, is too blurry/cropped/noisy to assess, or lacks enough context for its proposed label. |
+| `UNREADABLE` | The image has no identifiable Lead II trace, is too blurry/cropped/noisy to assess, or lacks enough context for its proposed label. |
 
 ## Exclusion and review
 
@@ -26,4 +26,4 @@ One image is one classification example and receives exactly one label. Use a cr
 
 ## Limitations
 
-These are dataset labels for a research prototype, not clinical diagnoses. The current MIT-BIH and PTB-XL signal models are not trained on photos and do not implement these photo labels. The current browser page does not perform image classification.
+These are dataset labels for a research prototype, not clinical diagnoses. The current PM-ECG-ID paired samples are twelve-lead paper ECG photos and are not target data for this single-lead monitor task. No paired single-lead monitor photos and signals have been collected yet. The current MIT-BIH and PTB-XL signal models are not trained on these photos, and the browser page does not perform image classification.
