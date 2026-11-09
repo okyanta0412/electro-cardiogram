@@ -21,6 +21,8 @@ const analysisMessage = document.querySelector("#analysis-message");
 const resultState = document.querySelector("#result-state");
 const resultTitle = document.querySelector("#result-title");
 const resultDescription = document.querySelector("#result-description");
+const pacState = document.querySelector("#pac-state");
+const pacDescription = document.querySelector("#pac-description");
 
 let selectedFile = null;
 let previewUrl = null;
@@ -51,6 +53,9 @@ function resetResult() {
   resultState.dataset.state = "idle";
   resultTitle.textContent = "解析結果はまだありません";
   resultDescription.textContent = "Lead II波形を3分類モデルとPAC候補検出器で処理します。";
+  pacState.textContent = "未解析";
+  pacState.dataset.state = "idle";
+  pacDescription.textContent = "解析後に候補状態を表示します。しきい値未満でもPACは否定できません。";
 }
 
 function readAsDataUrl(file) {
@@ -172,12 +177,12 @@ analyzeButton.addEventListener("click", async () => {
     resultState.textContent = "試作判定";
     resultState.dataset.state = "demo";
     resultTitle.textContent = `${LABEL_NAMES[payload.label] || "判定不能"}（${payload.label || "UNREADABLE"}）`;
-    const notes = [];
-    if (payload.review_reason) notes.push(payload.review_reason);
-    if (payload.pac_candidate) notes.push("PAC候補スコアはしきい値以上です。");
-    else notes.push("PAC候補スコアはしきい値未満です（PACを否定するものではありません）。");
-    notes.push(payload.warning || "研究用試作の出力です。医療上の判断に使用しないでください。");
-    resultDescription.textContent = notes.join(" ");
+    resultDescription.textContent = payload.review_reason || payload.warning || "研究用試作の出力です。医療上の判断に使用しないでください。";
+    pacState.textContent = payload.pac_candidate ? "候補あり" : "しきい値未満";
+    pacState.dataset.state = payload.pac_candidate ? "candidate" : "below-threshold";
+    pacDescription.textContent = payload.pac_candidate
+      ? "PAC候補スコアがしきい値以上です。写真での精度は未検証です。"
+      : "しきい値以上のPAC候補はありません。PACを否定する判定ではありません。";
     setMessage(analysisMessage, "分類処理が完了しました。結果は未検証の試作出力です。", "success");
   } catch (error) {
     if (currentVersion !== validationVersion) return;
@@ -185,6 +190,9 @@ analyzeButton.addEventListener("click", async () => {
     resultState.dataset.state = "unavailable";
     resultTitle.textContent = "分類を完了できませんでした";
     resultDescription.textContent = error instanceof Error ? error.message : "分類APIに接続できません。";
+    pacState.textContent = "判定不可";
+    pacState.dataset.state = "unavailable";
+    pacDescription.textContent = "波形を抽出できないため、PAC候補も判定できません。";
     setMessage(analysisMessage, error instanceof Error ? error.message : "分類APIに接続できません。", "error");
   } finally {
     if (currentVersion === validationVersion && selectedFile) analyzeButton.disabled = false;

@@ -118,7 +118,7 @@ Current patient-grouped signal accuracy is 0.800 (balanced accuracy 0.697). A PV
 ml/.venv/bin/python ml/train_pac_detector.py
 ```
 
-The current run used 398 PAC-coded and 149 non-PAC-coded records. Patient-grouped balanced accuracy at the default zero threshold was 0.496. The photo API applies a separate PAC-candidate margin threshold of 2.0; on out-of-fold signal predictions this produced 0.529 balanced accuracy, 0.839 precision and 0.118 recall. PAC is returned as a secondary candidate and never overrides the NORMAL/AF/PVC main class. Records without a PAC code are not guaranteed to be clinically PAC-free; photo extraction and PAC detection on photos remain unvalidated.
+The current run used 398 PAC-coded and 149 non-PAC-coded records. Patient-grouped balanced accuracy at the default zero threshold was 0.496. The photo API applies a separate PAC-candidate margin threshold of 2.0; on out-of-fold signal predictions this produced 0.529 balanced accuracy, 0.839 precision and 0.118 recall. PAC is shown in a separate auxiliary panel and never overrides the NORMAL/AF/PVC main class. In a synthetic browser check, a NORMAL-labeled rendering was also flagged as a PAC candidate, demonstrating false positives after image extraction. Records without a PAC code are not guaranteed to be clinically PAC-free; photo extraction and PAC detection on photos remain unvalidated.
 
 For the ten generated single-Lead-II images, correlation between the production-extracted waveform and paired reference ranged from 0.053 to 0.915 (median 0.743). The low PVC example indicates that extraction quality varies by waveform; these synthetic comparisons are not photo-classifier accuracy estimates.
 

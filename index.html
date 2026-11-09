@@ -64,6 +64,14 @@
             <p id="result-description">Lead II波形を3分類モデルとPAC候補検出器で処理します。</p>
           </div>
 
+          <section class="secondary-result" aria-labelledby="pac-result-heading">
+            <div class="secondary-result-heading">
+              <h3 id="pac-result-heading">PAC補助判定</h3>
+              <span id="pac-state" data-state="idle">未解析</span>
+            </div>
+            <p id="pac-description">解析後に候補状態を表示します。しきい値未満でもPACは否定できません。</p>
+          </section>
+
           <div class="classification-list">
             <h3>主分類（写真1枚につき1つ）</h3>
             <ul>

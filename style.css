@@ -340,6 +340,42 @@ h1 {
   line-height: 1.8;
 }
 
+.secondary-result {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.secondary-result-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.secondary-result h3 {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.secondary-result-heading span {
+  color: var(--muted);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+}
+
+.secondary-result-heading span[data-state="candidate"] {
+  color: #76551f;
+}
+
+.secondary-result p {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
 .classification-list {
   margin-top: 24px;
 }
