@@ -4,7 +4,6 @@ import argparse
 import ast
 import csv
 import json
-import time
 from pathlib import Path
 
 import cv2
@@ -134,16 +133,10 @@ def load_dataset() -> tuple[np.ndarray, np.ndarray, np.ndarray, list[dict[str, s
             lead_names = tuple(str(name) for name in cached["lead_names"])
         if signal.shape != (FEATURE_LENGTH, 1) or lead_names != ("II",):
             continue
-        features.append(extract_features_from_waveform(signal[:, 0]))
+        features.append(extract_features_from_waveform(signal))
         labels.append(label)
         groups.append(int(row.patient_id))
-        records.append(
-            {
-                "ecg_id": str(row.ecg_id),
-                "patient_id": str(row.patient_id),
-                "label": label,
-            }
-        )
+        records.append({"ecg_id": str(row.ecg_id), "patient_id": str(row.patient_id), "label": label})
 
     if not features:
         raise ValueError(f"No supported labeled Lead II signals found under {CACHE_ROOT}")
@@ -191,14 +184,14 @@ def evaluate(
         "feature_names": list(RHYTHM_FEATURE_NAMES),
         "labels": list(LABELS),
         "label_counts": {label: int(np.count_nonzero(labels == label)) for label in LABELS},
-        "accuracy": float(accuracy_score(labels, predictions)),
-        "balanced_accuracy": float(balanced_accuracy_score(labels, predictions)),
+        "accuracy": float(accuracy_score(labels, raw_predictions)),
+        "balanced_accuracy": float(balanced_accuracy_score(labels, raw_predictions)),
         "pvc_af_review_margin": PVC_AF_REVIEW_MARGIN,
         "review_count": int(review_mask.sum()),
         "review_rate": float(review_mask.mean()),
-        "accuracy_when_not_reviewed": float(accuracy_score(labels[accepted_mask], predictions[accepted_mask])),
+        "accuracy_when_not_reviewed": float(accuracy_score(labels[accepted_mask], raw_predictions[accepted_mask])),
         "balanced_accuracy_when_not_reviewed": float(
-            balanced_accuracy_score(labels[accepted_mask], predictions[accepted_mask])
+            balanced_accuracy_score(labels[accepted_mask], raw_predictions[accepted_mask])
         ),
         "af_to_pvc_after_review": int(np.count_nonzero((labels == "AF") & (predictions == "PVC"))),
         "confusion_matrix_labels": [*LABELS, "REVIEW"],
