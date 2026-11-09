@@ -17,7 +17,11 @@ import cv2
 import joblib
 import numpy as np
 
-from monitor_photo_classifier import MODEL_PATH, extract_features_from_image
+from monitor_photo_classifier import (
+    MODEL_PATH,
+    extract_features_from_waveform,
+    extract_waveform_from_image,
+)
 
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
@@ -34,8 +38,8 @@ STATIC_FILES = {
 }
 PAC_MODEL_PATH = Path(__file__).resolve().parent / "models" / "pac_detector.joblib"
 WARNING = (
-    "研究用試作です。PAC候補は数値信号のみで評価した別検出器の出力で、"
-    "写真上の精度は未検証です。医療診断や治療判断には使用できません。"
+    "研究用試作です。主分類の均衡正解率0.697は数値信号のみの評価で、写真精度は未検証です。"
+    "PAC候補も別検出器の出力です。医療診断や治療判断には使用できません。"
 )
 
 
@@ -119,8 +123,11 @@ def make_handler(classifier, pac_detector):
                     self.send_json(413, {"error": "Image dimensions exceed the 25 megapixel limit."})
                     return
 
-                features = extract_features_from_image(image).reshape(1, -1)
-                pac_score = float(pac_detector["classifier"].decision_function(features)[0])
+                waveform = extract_waveform_from_image(image)
+                features = extract_features_from_waveform(waveform).reshape(1, -1)
+                pac_score = float(
+                    pac_detector["classifier"].decision_function(waveform.reshape(1, -1))[0]
+                )
                 pac_candidate = pac_score >= float(pac_detector["decision_threshold"])
                 predicted_label = str(classifier.predict(features)[0])
                 self.send_json(

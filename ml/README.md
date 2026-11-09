@@ -90,7 +90,7 @@ On the one available phone photo, grayscale thresholding could not isolate a spa
 
 ### Three-class local demo
 
-`monitor_photo_classifier.py` trains a linear SVM on cached Lead II numerical signals and applies it to the waveform extracted from an uploaded high-contrast monitor image. ST-T changes are excluded. The remaining labels are assigned in the order PVC, AF/AFLT, then NORMAL. The current cache contributes 88 records: 48 NORMAL, 32 AF and 8 PVC. Evaluation uses four-fold stratified group splits by patient.
+`monitor_photo_classifier.py` trains a linear SVM on ten rhythm features (QRS count, RR statistics, peak prominence and signal variation) from cached Lead II numerical signals, then extracts the same features from an uploaded high-contrast monitor image. ST-T changes are excluded. Labels are assigned in the order PVC, AF/AFLT, then NORMAL. The current cache contributes 404 records: 305 NORMAL, 34 AF and 65 PVC across 399 patients. Evaluation uses four-fold stratified group splits by patient.
 
 Train and evaluate the model:
 
@@ -108,7 +108,7 @@ Open `http://localhost:8765`. The server binds to loopback by default and does n
 
 For public hosting, the repository includes a Dockerfile and Render Blueprint (`render.yaml`). Connect this GitHub repository in Render as a Blueprint and apply the `ecg-photo-classifier` web service. Render will provide the public HTTPS URL after deployment; the URL cannot be known until Render creates the service. The free instance may sleep when idle and have a cold start. Uploaded photos are sent to the host for processing; do not upload images containing personal or patient information. The application does not write uploaded image files to disk.
 
-Current patient-grouped signal accuracy is 0.318 (balanced accuracy 0.285). This evaluation does not include photo extraction. PVC has only eight examples. The UI/API path works, but this model is not validated for photo classification and must not be used for clinical decisions.
+Current patient-grouped signal accuracy is 0.800 (balanced accuracy 0.697). This evaluation does not include photo extraction. The class counts remain imbalanced, and photos introduce additional extraction error. In ten generated monitor images, extracted-waveform correlation against the paired signal ranged from 0.053 to 0.915 (median 0.743), showing that digitization quality varies by record. The UI/API path works, but the model is not validated for photo classification and must not be used for clinical decisions.
 
 ### Standalone PAC signal detector
 

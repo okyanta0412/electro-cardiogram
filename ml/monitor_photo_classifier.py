@@ -4,12 +4,14 @@ import argparse
 import ast
 import csv
 import json
+import time
 from pathlib import Path
 
 import cv2
 import joblib
 import numpy as np
 import pandas as pd
+from scipy.signal import find_peaks
 from sklearn.metrics import accuracy_score, balanced_accuracy_score, classification_report, confusion_matrix
 from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.pipeline import make_pipeline
@@ -32,6 +34,18 @@ MODEL_PATH = ROOT / "models" / "monitor_photo_classifier.joblib"
 METRICS_PATH = ROOT / "models" / "monitor_photo_classifier_metrics.json"
 LABELS = ("NORMAL", "AF", "PVC")
 FEATURE_LENGTH = 1000
+RHYTHM_FEATURE_NAMES = (
+    "qrs_peak_count",
+    "mean_rr_seconds",
+    "sdnn_seconds",
+    "rr_coefficient_of_variation",
+    "rmssd_seconds",
+    "fraction_rr_changes_over_50ms",
+    "median_peak_prominence",
+    "peak_prominence_std",
+    "signal_derivative_std",
+    "absolute_amplitude_p95",
+)
 RANDOM_SEED = 42
 
 
@@ -41,7 +55,7 @@ def normalize_signal(signal: np.ndarray) -> np.ndarray:
     return signal / (float(np.std(signal)) + 1e-6)
 
 
-def extract_features_from_image(image: np.ndarray) -> np.ndarray:
+def extract_waveform_from_image(image: np.ndarray) -> np.ndarray:
     mask = make_trace_mask(image)
     bands = find_trace_bands(mask)
     y0, y1 = bands[0] if len(bands) == 1 else bands[1]
@@ -49,6 +63,34 @@ def extract_features_from_image(image: np.ndarray) -> np.ndarray:
     sample_x = np.linspace(float(x_values.min()), float(x_values.max()), FEATURE_LENGTH)
     waveform = np.interp(sample_x, x_values, voltage_pixels)
     return normalize_signal(waveform)
+
+
+def extract_features_from_waveform(waveform: np.ndarray) -> np.ndarray:
+    waveform = normalize_signal(waveform)
+    peaks, properties = find_peaks(np.abs(waveform), distance=35, prominence=0.7)
+    rr_intervals = np.diff(peaks) / 100.0
+    rr_changes = np.diff(rr_intervals)
+    prominences = properties.get("prominences", np.asarray([], dtype=np.float32))
+
+    return np.asarray(
+        [
+            len(peaks),
+            float(np.mean(rr_intervals)) if rr_intervals.size else 0.0,
+            float(np.std(rr_intervals)) if rr_intervals.size else 0.0,
+            float(np.std(rr_intervals) / (np.mean(rr_intervals) + 1e-6)) if rr_intervals.size else 0.0,
+            float(np.sqrt(np.mean(rr_changes**2))) if rr_changes.size else 0.0,
+            float(np.mean(np.abs(rr_changes) > 0.05)) if rr_changes.size else 0.0,
+            float(np.median(prominences)) if prominences.size else 0.0,
+            float(np.std(prominences)) if prominences.size else 0.0,
+            float(np.std(np.diff(waveform))),
+            float(np.percentile(np.abs(waveform), 95)),
+        ],
+        dtype=np.float32,
+    )
+
+
+def extract_features_from_image(image: np.ndarray) -> np.ndarray:
+    return extract_features_from_waveform(extract_waveform_from_image(image))
 
 
 def extract_features(image_path: Path) -> np.ndarray:
@@ -72,12 +114,11 @@ def load_dataset() -> tuple[np.ndarray, np.ndarray, np.ndarray, list[dict[str, s
     if not DATABASE_PATH.exists():
         raise FileNotFoundError(f"PTB-XL metadata is missing under {RAW_ROOT}")
 
+    metadata = pd.read_csv(DATABASE_PATH)
     features = []
     labels = []
     groups = []
     records = []
-    metadata = pd.read_csv(DATABASE_PATH)
-
     for row in metadata.itertuples(index=False):
         ecg_id = int(row.ecg_id)
         cache_path = CACHE_ROOT / f"{ecg_id}.npz"
@@ -92,11 +133,16 @@ def load_dataset() -> tuple[np.ndarray, np.ndarray, np.ndarray, list[dict[str, s
             lead_names = tuple(str(name) for name in cached["lead_names"])
         if signal.shape != (FEATURE_LENGTH, 1) or lead_names != ("II",):
             continue
-
-        features.append(normalize_signal(signal))
+        features.append(extract_features_from_waveform(signal[:, 0]))
         labels.append(label)
         groups.append(int(row.patient_id))
-        records.append({"ecg_id": str(ecg_id), "patient_id": str(row.patient_id), "label": label})
+        records.append(
+            {
+                "ecg_id": str(row.ecg_id),
+                "patient_id": str(row.patient_id),
+                "label": label,
+            }
+        )
 
     if not features:
         raise ValueError(f"No supported labeled Lead II signals found under {CACHE_ROOT}")
@@ -128,7 +174,7 @@ def evaluate(
         "validation": "4-fold stratified group cross-validation by patient",
         "sample_count": len(labels),
         "patient_count": len(np.unique(groups)),
-        "feature_length": FEATURE_LENGTH,
+        "feature_names": list(RHYTHM_FEATURE_NAMES),
         "labels": list(LABELS),
         "label_counts": {label: int(np.count_nonzero(labels == label)) for label in LABELS},
         "accuracy": float(accuracy_score(labels, predictions)),
@@ -146,8 +192,7 @@ def evaluate(
             for record, prediction in zip(records, predictions)
         ],
         "warning": (
-            "The PVC class has only eight records. These signal-only metrics do not validate photo digitization "
-            "or clinical performance."
+            "These metrics use numerical ECG signals, not photo-derived waveforms, and are not clinical performance estimates."
         ),
     }
 
@@ -180,8 +225,8 @@ def main() -> None:
     args.model.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump({"classifier": classifier, "labels": LABELS, "warning": metrics["warning"]}, args.model)
 
-    print(f"4-fold patient-grouped accuracy: {metrics['accuracy']:.3f}")
-    print(f"4-fold patient-grouped balanced accuracy: {metrics['balanced_accuracy']:.3f}")
+    print(f"Patient-grouped accuracy: {metrics['accuracy']:.3f}")
+    print(f"Patient-grouped balanced accuracy: {metrics['balanced_accuracy']:.3f}")
     print(f"Samples: {metrics['sample_count']} across {metrics['patient_count']} patients")
     print(f"Class counts: {metrics['label_counts']}")
     print("Confusion matrix (rows=true, columns=predicted; order NORMAL, AF, PVC):")
