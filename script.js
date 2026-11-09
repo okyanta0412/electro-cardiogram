@@ -171,7 +171,10 @@ analyzeButton.addEventListener("click", async () => {
     resultState.textContent = "試作判定";
     resultState.dataset.state = "demo";
     resultTitle.textContent = `${LABEL_NAMES[payload.label] || "判定不能"}（${payload.label || "UNREADABLE"}）`;
-    resultDescription.textContent = payload.warning || "研究用試作の出力です。医療上の判断に使用しないでください。";
+    const pacNote = payload.pac_candidate
+      ? "PAC候補スコアはしきい値以上です。"
+      : "PAC候補スコアはしきい値未満です（PACを否定するものではありません）。";
+    resultDescription.textContent = `${pacNote} ${payload.warning || "研究用試作の出力です。医療上の判断に使用しないでください。"}`;
     setMessage(analysisMessage, "分類処理が完了しました。結果は未検証の試作出力です。", "success");
   } catch (error) {
     if (currentVersion !== validationVersion) return;

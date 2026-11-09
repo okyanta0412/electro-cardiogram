@@ -122,7 +122,7 @@ def make_handler(classifier, pac_detector):
                 features = extract_features_from_image(image).reshape(1, -1)
                 pac_score = float(pac_detector["classifier"].decision_function(features)[0])
                 pac_candidate = pac_score >= float(pac_detector["decision_threshold"])
-                predicted_label = "PAC" if pac_candidate else str(classifier.predict(features)[0])
+                predicted_label = str(classifier.predict(features)[0])
                 self.send_json(
                     200,
                     {

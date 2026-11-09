@@ -173,6 +173,11 @@ def register_to_reference(image: np.ndarray, reference: np.ndarray) -> tuple[np.
 
 def extract_trace(mask: np.ndarray, y0: int, y1: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, int]:
     row_mask = mask[y0:y1]
+    row_mask = cv2.morphologyEx(
+        row_mask,
+        cv2.MORPH_CLOSE,
+        cv2.getStructuringElement(cv2.MORPH_RECT, (7, 1)),
+    )
     x_values = np.flatnonzero(np.count_nonzero(row_mask, axis=0) > 0)
     if x_values.size < 100:
         raise ValueError(f"Trace row is too short: only {x_values.size} image columns detected.")
