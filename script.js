@@ -6,6 +6,7 @@ const LABEL_NAMES = {
   AF: "心房細動",
   PVC: "心室期外収縮",
   PAC: "心房性期外収縮候補",
+  REVIEW: "判定保留（AF/PVC要確認）",
 };
 
 const fileInput = document.querySelector("#ecg-photo");
@@ -171,10 +172,12 @@ analyzeButton.addEventListener("click", async () => {
     resultState.textContent = "試作判定";
     resultState.dataset.state = "demo";
     resultTitle.textContent = `${LABEL_NAMES[payload.label] || "判定不能"}（${payload.label || "UNREADABLE"}）`;
-    const pacNote = payload.pac_candidate
-      ? "PAC候補スコアはしきい値以上です。"
-      : "PAC候補スコアはしきい値未満です（PACを否定するものではありません）。";
-    resultDescription.textContent = `${pacNote} ${payload.warning || "研究用試作の出力です。医療上の判断に使用しないでください。"}`;
+    const notes = [];
+    if (payload.review_reason) notes.push(payload.review_reason);
+    if (payload.pac_candidate) notes.push("PAC候補スコアはしきい値以上です。");
+    else notes.push("PAC候補スコアはしきい値未満です（PACを否定するものではありません）。");
+    notes.push(payload.warning || "研究用試作の出力です。医療上の判断に使用しないでください。");
+    resultDescription.textContent = notes.join(" ");
     setMessage(analysisMessage, "分類処理が完了しました。結果は未検証の試作出力です。", "success");
   } catch (error) {
     if (currentVersion !== validationVersion) return;

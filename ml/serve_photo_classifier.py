@@ -38,12 +38,12 @@ STATIC_FILES = {
 }
 PAC_MODEL_PATH = Path(__file__).resolve().parent / "models" / "pac_detector.joblib"
 WARNING = (
-    "研究用試作です。主分類の均衡正解率0.697は数値信号のみの評価で、写真精度は未検証です。"
-    "PAC候補も別検出器の出力です。医療診断や治療判断には使用できません。"
+    "研究用試作です。数値信号のみの患者単位評価で主分類の均衡正解率は0.697でした。"
+    "写真精度は未検証です。PAC候補も別検出器の出力です。医療診断や治療判断には使用できません。"
 )
 
 
-def make_handler(classifier, pac_detector):
+def make_handler(classifier, pac_detector, pvc_af_review_margin: float = 2.0):
     requests_by_client: dict[str, deque[float]] = defaultdict(deque)
     rate_limit_lock = threading.Lock()
 
@@ -129,11 +129,24 @@ def make_handler(classifier, pac_detector):
                     pac_detector["classifier"].decision_function(waveform.reshape(1, -1))[0]
                 )
                 pac_candidate = pac_score >= float(pac_detector["decision_threshold"])
-                predicted_label = str(classifier.predict(features)[0])
+                decision_scores = classifier.decision_function(features)[0]
+                class_order = classifier.named_steps["linearsvc"].classes_
+                predicted_label = str(class_order[int(np.argmax(decision_scores))])
+                review_reason = None
+                pvc_af_margin = None
+                if predicted_label == "PVC":
+                    pvc_score = float(decision_scores[int(np.flatnonzero(class_order == "PVC")[0])])
+                    af_score = float(decision_scores[int(np.flatnonzero(class_order == "AF")[0])])
+                    pvc_af_margin = pvc_score - af_score
+                    if pvc_af_margin < pvc_af_review_margin:
+                        predicted_label = "REVIEW"
+                        review_reason = "PVCとAFのスコア差が小さいため、判定を保留しました。"
                 self.send_json(
                     200,
                     {
                         "label": predicted_label,
+                        "review_reason": review_reason,
+                        "pvc_af_margin": pvc_af_margin,
                         "pac_candidate": pac_candidate,
                         "pac_score": pac_score,
                         "pac_threshold": pac_detector["decision_threshold"],
@@ -168,7 +181,11 @@ def main() -> None:
     port = int(os.environ.get("PORT", args.port))
     server = ThreadingHTTPServer(
         (args.host, port),
-        make_handler(artifact["classifier"], pac_detector),
+        make_handler(
+            artifact["classifier"],
+            pac_detector,
+            float(artifact.get("pvc_af_review_margin", 2.0)),
+        ),
     )
     print(f"ECG photo demo ready at http://{args.host}:{port}/")
     try:

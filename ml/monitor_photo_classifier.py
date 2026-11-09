@@ -47,6 +47,7 @@ RHYTHM_FEATURE_NAMES = (
     "absolute_amplitude_p95",
 )
 RANDOM_SEED = 42
+PVC_AF_REVIEW_MARGIN = 2.0
 
 
 def normalize_signal(signal: np.ndarray) -> np.ndarray:
@@ -162,12 +163,25 @@ def evaluate(
     groups: np.ndarray,
     records: list[dict[str, str]],
 ) -> dict[str, object]:
-    predictions = np.empty(labels.shape, dtype=object)
+    decision_scores = np.empty((len(labels), len(LABELS)), dtype=np.float32)
+    class_order: np.ndarray | None = None
     splitter = StratifiedGroupKFold(n_splits=4, shuffle=True, random_state=RANDOM_SEED)
     for train_indices, test_indices in splitter.split(features, labels, groups):
         classifier = create_classifier()
         classifier.fit(features[train_indices], labels[train_indices])
-        predictions[test_indices] = classifier.predict(features[test_indices])
+        class_order = classifier.named_steps["linearsvc"].classes_
+        decision_scores[test_indices] = classifier.decision_function(features[test_indices])
+
+    if class_order is None:
+        raise ValueError("Could not fit a classifier for cross-validation.")
+    raw_predictions = class_order[np.argmax(decision_scores, axis=1)]
+    pvc_index = int(np.flatnonzero(class_order == "PVC")[0])
+    af_index = int(np.flatnonzero(class_order == "AF")[0])
+    pvc_af_margin = decision_scores[:, pvc_index] - decision_scores[:, af_index]
+    review_mask = (raw_predictions == "PVC") & (pvc_af_margin < PVC_AF_REVIEW_MARGIN)
+    predictions = raw_predictions.astype(object)
+    predictions[review_mask] = "REVIEW"
+    accepted_mask = ~review_mask
 
     return {
         "input_type": "PTB-XL Lead II numerical signals; photo waveform extraction is not part of this evaluation",
@@ -179,11 +193,20 @@ def evaluate(
         "label_counts": {label: int(np.count_nonzero(labels == label)) for label in LABELS},
         "accuracy": float(accuracy_score(labels, predictions)),
         "balanced_accuracy": float(balanced_accuracy_score(labels, predictions)),
-        "confusion_matrix": confusion_matrix(labels, predictions, labels=LABELS).tolist(),
+        "pvc_af_review_margin": PVC_AF_REVIEW_MARGIN,
+        "review_count": int(review_mask.sum()),
+        "review_rate": float(review_mask.mean()),
+        "accuracy_when_not_reviewed": float(accuracy_score(labels[accepted_mask], predictions[accepted_mask])),
+        "balanced_accuracy_when_not_reviewed": float(
+            balanced_accuracy_score(labels[accepted_mask], predictions[accepted_mask])
+        ),
+        "af_to_pvc_after_review": int(np.count_nonzero((labels == "AF") & (predictions == "PVC"))),
+        "confusion_matrix_labels": [*LABELS, "REVIEW"],
+        "confusion_matrix": confusion_matrix(labels, predictions, labels=[*LABELS, "REVIEW"]).tolist(),
         "classification_report": classification_report(
             labels,
             predictions,
-            labels=LABELS,
+            labels=[*LABELS, "REVIEW"],
             output_dict=True,
             zero_division=0,
         ),
@@ -192,7 +215,8 @@ def evaluate(
             for record, prediction in zip(records, predictions)
         ],
         "warning": (
-            "These metrics use numerical ECG signals, not photo-derived waveforms, and are not clinical performance estimates."
+            "These metrics use numerical ECG signals, not photo-derived waveforms. The PVC/AF review threshold is exploratory, "
+            "selected on the same cross-validation predictions, and is not an independent performance estimate."
         ),
     }
 
@@ -223,10 +247,23 @@ def main() -> None:
     classifier = create_classifier()
     classifier.fit(features, labels)
     args.model.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump({"classifier": classifier, "labels": LABELS, "warning": metrics["warning"]}, args.model)
+    joblib.dump(
+        {
+            "classifier": classifier,
+            "labels": LABELS,
+            "pvc_af_review_margin": PVC_AF_REVIEW_MARGIN,
+            "warning": metrics["warning"],
+        },
+        args.model,
+    )
 
     print(f"Patient-grouped accuracy: {metrics['accuracy']:.3f}")
     print(f"Patient-grouped balanced accuracy: {metrics['balanced_accuracy']:.3f}")
+    print(
+        f"PVC/AF review: {metrics['review_count']} ({metrics['review_rate']:.1%}) held for review; "
+        f"AF-to-PVC remaining={metrics['af_to_pvc_after_review']}"
+    )
+    print(f"Accuracy when not held: {metrics['accuracy_when_not_reviewed']:.3f}")
     print(f"Samples: {metrics['sample_count']} across {metrics['patient_count']} patients")
     print(f"Class counts: {metrics['label_counts']}")
     print("Confusion matrix (rows=true, columns=predicted; order NORMAL, AF, PVC):")
