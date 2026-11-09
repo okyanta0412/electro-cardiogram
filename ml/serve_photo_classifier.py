@@ -10,18 +10,23 @@ import threading
 import time
 from collections import defaultdict, deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from io import BytesIO
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 import cv2
 import joblib
 import numpy as np
+import pillow_heif
+from PIL import Image, ImageOps
 
 from monitor_photo_classifier import (
     MODEL_PATH,
     extract_features_from_waveform,
     extract_waveform_from_image,
 )
+
+pillow_heif.register_heif_opener()
 
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
@@ -41,6 +46,24 @@ WARNING = (
     "研究用試作です。数値信号のみの患者単位評価で主分類の均衡正解率は0.697でした。"
     "写真精度は未検証です。PAC候補も別検出器の出力です。医療診断や治療判断には使用できません。"
 )
+
+
+def decode_uploaded_image(image_bytes: bytes) -> np.ndarray:
+    encoded = np.frombuffer(image_bytes, dtype=np.uint8)
+    image = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+    if image is not None:
+        return image
+
+    try:
+        with Image.open(BytesIO(image_bytes)) as source:
+            if source.width * source.height > MAX_IMAGE_PIXELS:
+                raise ValueError("Image dimensions exceed the 25 megapixel limit.")
+            rgb_image = np.asarray(ImageOps.exif_transpose(source).convert("RGB"))
+        return cv2.cvtColor(rgb_image, cv2.COLOR_RGB2BGR)
+    except ValueError:
+        raise
+    except Exception as error:
+        raise ValueError("Could not decode image. Use JPEG, PNG, HEIC or HEIF.") from error
 
 
 def make_handler(classifier, pac_detector, pvc_af_review_margin: float = 2.0):
@@ -115,10 +138,7 @@ def make_handler(classifier, pac_detector, pvc_af_review_margin: float = 2.0):
                 if not image_bytes or len(image_bytes) > MAX_IMAGE_BYTES:
                     self.send_json(413, {"error": "Image must be no larger than 10 MB."})
                     return
-                image = cv2.imdecode(np.frombuffer(image_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
-                if image is None:
-                    self.send_json(422, {"error": "Could not decode the uploaded image."})
-                    return
+                image = decode_uploaded_image(image_bytes)
                 if image.shape[0] * image.shape[1] > MAX_IMAGE_PIXELS:
                     self.send_json(413, {"error": "Image dimensions exceed the 25 megapixel limit."})
                     return

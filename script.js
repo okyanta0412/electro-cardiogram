@@ -1,5 +1,7 @@
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png"]);
+const HEIC_TYPES = new Set(["image/heic", "image/heif", "image/heic-sequence", "image/heif-sequence"]);
+const EMPTY_PREVIEW_TEXT = "選択したモニター写真のプレビューがここに表示されます";
 const CLASSIFY_URL = "/api/classify";
 const LABEL_NAMES = {
   NORMAL: "正常・対象所見なし",
@@ -42,6 +44,7 @@ function releasePreview() {
   previewImage.removeAttribute("src");
   previewImage.hidden = true;
   previewEmpty.hidden = false;
+  previewEmpty.textContent = EMPTY_PREVIEW_TEXT;
   previewMeta.hidden = true;
   previewFilename.textContent = "";
   selectedFile = null;
@@ -77,13 +80,14 @@ async function handleFileSelection() {
   if (!file) return;
 
   const currentVersion = ++validationVersion;
+  const isHeic = HEIC_TYPES.has(file.type) || /\.hei[cf]$/i.test(file.name);
   releasePreview();
   setMessage(inputMessage, "画像を確認しています…", "checking");
   setMessage(analysisMessage, "", "idle");
   resetResult();
 
-  if (!ALLOWED_TYPES.has(file.type)) {
-    showInvalidFile("JPEG または PNG 形式の画像を選択してください。");
+  if (!ALLOWED_TYPES.has(file.type) && !isHeic) {
+    showInvalidFile("JPEG、PNG、HEIC 形式の画像を選択してください。");
     return;
   }
 
@@ -104,6 +108,22 @@ async function handleFileSelection() {
   try {
     await image.decode();
   } catch {
+    if (isHeic) {
+      if (currentVersion !== validationVersion) {
+        URL.revokeObjectURL(objectUrl);
+        return;
+      }
+      previewUrl = objectUrl;
+      selectedFile = file;
+      previewEmpty.textContent = "HEIC画像を選択しました。プレビューできない場合も、そのまま分類できます。";
+      previewEmpty.hidden = false;
+      previewMeta.hidden = false;
+      previewFilename.textContent = file.name;
+      analyzeButton.disabled = false;
+      setMessage(inputMessage, "HEIC画像を読み込みました。内容を確認してください。", "success");
+      setMessage(analysisMessage, "HEIC画像をサーバー側で変換して分類します。", "ready");
+      return;
+    }
     URL.revokeObjectURL(objectUrl);
     if (currentVersion === validationVersion) {
       showInvalidFile("画像を読み込めませんでした。ファイルを確認してください。");
