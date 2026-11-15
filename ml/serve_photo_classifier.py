@@ -43,10 +43,49 @@ STATIC_FILES = {
 }
 PAC_MODEL_PATH = Path(__file__).resolve().parent / "models" / "pac_detector.joblib"
 ADDITIONAL_MODELS_PATH = Path(__file__).resolve().parent / "models" / "additional_ecg_findings.joblib"
+VT_MODEL_PATH = Path(__file__).resolve().parent / "models" / "vt_single_episode_prototype.joblib"
+FINDING_PRIORITY = (
+    "ventricular_tachycardia",
+    "third_degree_av_block",
+    "nonspecific_st_elevation",
+    "second_degree_av_block",
+    "nonspecific_st_depression",
+)
 WARNING = (
     "研究用試作です。主分類・追加所見・PAC候補はいずれも写真からの精度が未検証です。"
     "医療診断や治療判断には使用できません。"
 )
+
+
+def score_vt_windows(waveform: np.ndarray, detector: dict[str, object]) -> float:
+    signal = np.asarray(waveform, dtype=np.float32).reshape(-1)
+    source_window_size = 100
+    target_window_size = 360
+    step_size = source_window_size // 2
+    classifier = detector["classifier"]
+    scores = []
+    for start in range(0, len(signal) - source_window_size + 1, step_size):
+        window = signal[start : start + source_window_size]
+        centered = window - float(np.median(window))
+        normalized = centered / (float(np.std(centered)) + 1e-6)
+        resampled = np.interp(
+            np.linspace(0.0, source_window_size - 1, target_window_size),
+            np.arange(source_window_size),
+            normalized,
+        )
+        scores.append(float(classifier.decision_function(resampled.reshape(1, -1))[0]))
+    return max(scores, default=float("-inf"))
+
+
+def select_priority_finding(additional_results: dict[str, dict[str, object]]) -> str | None:
+    return next(
+        (
+            name
+            for name in FINDING_PRIORITY
+            if additional_results.get(name, {}).get("candidate", False)
+        ),
+        None,
+    )
 
 
 def decode_uploaded_image(image_bytes: bytes) -> np.ndarray:
@@ -72,6 +111,7 @@ def make_handler(
     pac_detector,
     pvc_af_review_margin: float = 2.0,
     additional_detectors: dict[str, object] | None = None,
+    vt_detector: dict[str, object] | None = None,
 ):
     requests_by_client: dict[str, deque[float]] = defaultdict(deque)
     rate_limit_lock = threading.Lock()
@@ -109,8 +149,12 @@ def make_handler(
                     {
                         "ready": True,
                         "labels": [*classifier.classes_.tolist(), "REVIEW", "PAC"],
-                        "additional_findings": list((additional_detectors or {}).keys()),
-                        "vt_prediction_available": False,
+                        "additional_findings": [
+                            *(additional_detectors or {}).keys(),
+                            *( ["ventricular_tachycardia"] if vt_detector else []),
+                        ],
+                        "finding_priority": list(FINDING_PRIORITY),
+                        "vt_prediction_available": vt_detector is not None,
                         "warning": WARNING,
                     },
                 )
@@ -177,17 +221,26 @@ def make_handler(
                 for name, detector in (additional_detectors or {}).items():
                     score = float(detector.decision_function(waveform.reshape(1, -1))[0])
                     additional_results[name] = {"candidate": score >= 0.0, "score": score}
+                if vt_detector is not None:
+                    vt_score = score_vt_windows(waveform, vt_detector)
+                    additional_results["ventricular_tachycardia"] = {
+                        "candidate": vt_score >= 0.0,
+                        "score": vt_score,
+                    }
+                priority_finding = select_priority_finding(additional_results)
                 self.send_json(
                     200,
                     {
-                        "label": predicted_label,
+                        "label": priority_finding or predicted_label,
+                        "base_label": predicted_label,
+                        "priority_finding": priority_finding,
                         "review_reason": review_reason,
                         "pvc_af_margin": pvc_af_margin,
                         "pac_candidate": pac_candidate,
                         "pac_score": pac_score,
                         "pac_threshold": pac_detector["decision_threshold"],
                         "additional_findings": additional_results,
-                        "vt_prediction_available": False,
+                        "vt_prediction_available": vt_detector is not None,
                         "warning": WARNING,
                     },
                 )
@@ -209,6 +262,7 @@ def main() -> None:
     parser.add_argument("--model", type=Path, default=MODEL_PATH)
     parser.add_argument("--pac-model", type=Path, default=PAC_MODEL_PATH)
     parser.add_argument("--additional-models", type=Path, default=ADDITIONAL_MODELS_PATH)
+    parser.add_argument("--vt-model", type=Path, default=VT_MODEL_PATH)
     args = parser.parse_args()
     if not args.model.exists():
         raise SystemExit(f"Model not found: {args.model}. Run ml/monitor_photo_classifier.py first.")
@@ -219,10 +273,13 @@ def main() -> None:
             f"Additional-finding models not found: {args.additional_models}. "
             "Run ml/train_additional_ecg_findings.py first."
         )
+    if not args.vt_model.exists():
+        raise SystemExit(f"VT model not found: {args.vt_model}. Run ml/train_vt_single_episode_prototype.py first.")
 
     artifact = joblib.load(args.model)
     pac_detector = joblib.load(args.pac_model)
     additional_detectors = joblib.load(args.additional_models)
+    vt_detector = joblib.load(args.vt_model)
     port = int(os.environ.get("PORT", args.port))
     server = ThreadingHTTPServer(
         (args.host, port),
@@ -231,6 +288,7 @@ def main() -> None:
             pac_detector,
             float(artifact.get("pvc_af_review_margin", 2.0)),
             additional_detectors,
+            vt_detector,
         ),
     )
     print(f"ECG photo demo ready at http://{args.host}:{port}/")

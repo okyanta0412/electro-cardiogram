@@ -9,6 +9,22 @@ const LABEL_NAMES = {
   PVC: "心室期外収縮",
   PAC: "心房性期外収縮候補",
   REVIEW: "判定保留（AF/PVC要確認）",
+  ventricular_tachycardia: "心室頻拍（VT）候補",
+  third_degree_av_block: "3度房室ブロック候補",
+  nonspecific_st_elevation: "ST上昇候補",
+  second_degree_av_block: "2度房室ブロック候補",
+  nonspecific_st_depression: "ST低下候補",
+};
+const LABEL_CODES = {
+  NORMAL: "NORMAL",
+  AF: "AF",
+  PVC: "PVC",
+  REVIEW: "REVIEW",
+  ventricular_tachycardia: "VT",
+  third_degree_av_block: "3AVB",
+  nonspecific_st_elevation: "STE",
+  second_degree_av_block: "2AVB",
+  nonspecific_st_depression: "STD",
 };
 
 const fileInput = document.querySelector("#ecg-photo");
@@ -56,12 +72,11 @@ function resetResult() {
   resultState.textContent = "未解析";
   resultState.dataset.state = "idle";
   resultTitle.textContent = "解析結果はまだありません";
-  resultDescription.textContent = "Lead II波形を3分類モデルとPAC候補検出器で処理します。";
+  resultDescription.textContent = "複数の異常所見を検出し、優先候補を主結果に表示します。";
   pacState.textContent = "未解析";
   pacState.dataset.state = "idle";
   pacDescription.textContent = "解析後に候補状態を表示します。しきい値未満でもPACは否定できません。";
   for (const element of additionalFindingStates) {
-    if (element.dataset.additionalFinding === "ventricular_tachycardia") continue;
     element.textContent = "未解析";
     element.dataset.state = "idle";
   }
@@ -200,10 +215,12 @@ analyzeButton.addEventListener("click", async () => {
     }
     if (currentVersion !== validationVersion) return;
 
-    resultState.textContent = "試作判定";
+    resultState.textContent = payload.priority_finding ? "優先所見候補" : "試作判定";
     resultState.dataset.state = "demo";
-    resultTitle.textContent = `${LABEL_NAMES[payload.label] || "判定不能"}（${payload.label || "UNREADABLE"}）`;
-    resultDescription.textContent = payload.review_reason || payload.warning || "研究用試作の出力です。医療上の判断に使用しないでください。";
+    resultTitle.textContent = `${LABEL_NAMES[payload.label] || "判定不能"}（${LABEL_CODES[payload.label] || payload.label || "UNREADABLE"}）`;
+    resultDescription.textContent = payload.priority_finding
+      ? `基本リズム分類: ${LABEL_NAMES[payload.base_label] || payload.base_label}。${payload.warning || ""}`
+      : payload.review_reason || payload.warning || "研究用試作の出力です。医療上の判断に使用しないでください。";
     pacState.textContent = payload.pac_candidate ? "候補あり" : "しきい値未満";
     pacState.dataset.state = payload.pac_candidate ? "candidate" : "below-threshold";
     pacDescription.textContent = payload.pac_candidate
@@ -226,7 +243,6 @@ analyzeButton.addEventListener("click", async () => {
     pacState.dataset.state = "unavailable";
     pacDescription.textContent = "波形を抽出できないため、PAC候補も判定できません。";
     for (const element of additionalFindingStates) {
-      if (element.dataset.additionalFinding === "ventricular_tachycardia") continue;
       element.textContent = "判定不可";
       element.dataset.state = "unavailable";
     }

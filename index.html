@@ -61,7 +61,7 @@
           <div class="result-placeholder">
             <span class="placeholder-rule"></span>
             <h3 id="result-title">解析結果はまだありません</h3>
-            <p id="result-description">Lead II波形を3分類モデルとPAC候補検出器で処理します。</p>
+            <p id="result-description">複数の異常所見を検出し、優先候補を主結果に表示します。</p>
           </div>
 
           <section class="secondary-result" aria-labelledby="pac-result-heading">
@@ -73,20 +73,25 @@
           </section>
 
           <section class="additional-result" aria-labelledby="additional-result-heading">
-            <h3 id="additional-result-heading">追加所見候補（数値信号モデル・写真精度未検証）</h3>
+            <h3 id="additional-result-heading">検出した所見候補</h3>
             <ul>
               <li><span>2度房室ブロック</span><span data-additional-finding="second_degree_av_block" data-state="idle">未解析</span></li>
               <li><span>3度房室ブロック</span><span data-additional-finding="third_degree_av_block" data-state="idle">未解析</span></li>
               <li><span>ST上昇</span><span data-additional-finding="nonspecific_st_elevation" data-state="idle">未解析</span></li>
               <li><span>ST低下</span><span data-additional-finding="nonspecific_st_depression" data-state="idle">未解析</span></li>
-              <li><span>心室頻拍（VT）</span><span data-additional-finding="ventricular_tachycardia" data-state="unavailable">データ不足・予測なし</span></li>
+              <li><span>心室頻拍（VT）</span><span data-additional-finding="ventricular_tachycardia" data-state="idle">未解析</span></li>
             </ul>
-            <p>候補は確定診断ではありません。VTは注釈1エピソードのみのため予測しません。</p>
+            <p>主結果には優先順位が最も高い候補を表示します。全候補と基本リズム分類も併記します。</p>
           </section>
 
           <div class="classification-list">
-            <h3>主分類（写真1枚につき1つ）</h3>
+            <h3>主結果と分類ラベル</h3>
             <ul>
+              <li><span>心室頻拍（VT）候補</span><span>V-TACH</span></li>
+              <li><span>3度房室ブロック候補</span><span>3AVB</span></li>
+              <li><span>ST上昇候補</span><span>STE</span></li>
+              <li><span>2度房室ブロック候補</span><span>2AVB</span></li>
+              <li><span>ST低下候補</span><span>STD</span></li>
               <li><span>正常・対象所見なし</span><span>NORMAL</span></li>
               <li><span>心房細動</span><span>AF</span></li>
               <li><span>心室期外収縮</span><span>PVC</span></li>
@@ -95,7 +100,7 @@
             </ul>
           </div>
 
-          <p class="disclaimer">追加所見・PAC候補は数値信号による試作で、写真精度は未検証です。VTはデータ不足のため予測しません。画像はサーバーへ送信されるため、個人情報を含む画像は送らないでください。医療上の判断に使用しないでください。</p>
+          <p class="disclaimer">全所見は試作候補で、写真精度は未検証です。VTモデルは1エピソードのみで学習しています。画像はサーバーへ送信されるため、個人情報を含む画像は送らないでください。医療上の判断に使用しないでください。</p>
         </section>
       </div>
     </main>

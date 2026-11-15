@@ -130,7 +130,7 @@ The current run used 398 PAC-coded and 149 non-PAC-coded records. Patient-groupe
 ml/.venv/bin/python ml/train_additional_ecg_findings.py
 ```
 
-The held-out results are not adequate for clinical use: 2AVB has only 2 positive test records (balanced accuracy 0.880, average precision 0.125); 3AVB has 4 (0.465, 0.056); ST elevation has 6 (0.640, 0.116); and ST depression has 100 (0.503, 0.408). The public API returns these as independent experimental candidates, but they were trained and evaluated on numerical signals, not photos. False positives are expected. The current cache has no VF labels.
+The held-out results are not adequate for clinical use: 2AVB has only 2 positive test records (balanced accuracy 0.880, average precision 0.125); 3AVB has 4 (0.465, 0.056); ST elevation has 6 (0.640, 0.116); and ST depression has 100 (0.503, 0.408). The public API evaluates these alongside the AF/NORMAL/PVC rhythm classifier. If one or more additional detectors return a candidate, the highest-priority finding replaces the rhythm label in the main result; the original rhythm label remains available as `base_label`, and all finding scores remain in `additional_findings`. The display priority is VT, 3AVB, ST elevation, 2AVB, then ST depression. These detectors were trained and evaluated on numerical signals, not photos, and false positives are expected. The current cache has no VF labels.
 
 One VT episode is annotated locally in MIT-BIH record 106. `train_vt_single_episode_prototype.py` builds an experimental window classifier from that episode and normal-rhythm windows from the same record:
 
@@ -138,7 +138,7 @@ One VT episode is annotated locally in MIT-BIH record 106. `train_vt_single_epis
 ml/.venv/bin/python ml/train_vt_single_episode_prototype.py
 ```
 
-It produces 11 overlapping positive windows from the single approximately 2-second episode. This is a template-like software prototype with no independent validation, not a VT classifier suitable for deployment; it is not connected to the public API. The web UI marks VT as unavailable instead of using this artifact for predictions.
+It produces 11 overlapping positive windows from the single approximately 2-second episode. The public API now applies this experimental model to overlapping one-second windows resampled from each extracted 10-second photo waveform and includes VT in the same finding-priority output. This is a template-like software prototype with no independent validation; its result is an experimental candidate, not a validated VT classification.
 
 For the ten generated single-Lead-II images, correlation between the production-extracted waveform and paired reference ranged from 0.053 to 0.915 (median 0.743). The low PVC example indicates that extraction quality varies by waveform; these synthetic comparisons are not photo-classifier accuracy estimates.
 
