@@ -25,6 +25,7 @@ const resultTitle = document.querySelector("#result-title");
 const resultDescription = document.querySelector("#result-description");
 const pacState = document.querySelector("#pac-state");
 const pacDescription = document.querySelector("#pac-description");
+const additionalFindingStates = document.querySelectorAll("[data-additional-finding]");
 
 let selectedFile = null;
 let previewUrl = null;
@@ -59,6 +60,11 @@ function resetResult() {
   pacState.textContent = "未解析";
   pacState.dataset.state = "idle";
   pacDescription.textContent = "解析後に候補状態を表示します。しきい値未満でもPACは否定できません。";
+  for (const element of additionalFindingStates) {
+    if (element.dataset.additionalFinding === "ventricular_tachycardia") continue;
+    element.textContent = "未解析";
+    element.dataset.state = "idle";
+  }
 }
 
 function readAsDataUrl(file) {
@@ -203,6 +209,12 @@ analyzeButton.addEventListener("click", async () => {
     pacDescription.textContent = payload.pac_candidate
       ? "PAC候補スコアがしきい値以上です。写真での精度は未検証です。"
       : "しきい値以上のPAC候補はありません。PACを否定する判定ではありません。";
+    for (const element of additionalFindingStates) {
+      const finding = payload.additional_findings?.[element.dataset.additionalFinding];
+      if (!finding) continue;
+      element.textContent = finding.candidate ? "候補あり" : "候補スコア未満";
+      element.dataset.state = finding.candidate ? "candidate" : "below-threshold";
+    }
     setMessage(analysisMessage, "分類処理が完了しました。結果は未検証の試作出力です。", "success");
   } catch (error) {
     if (currentVersion !== validationVersion) return;
@@ -213,6 +225,11 @@ analyzeButton.addEventListener("click", async () => {
     pacState.textContent = "判定不可";
     pacState.dataset.state = "unavailable";
     pacDescription.textContent = "波形を抽出できないため、PAC候補も判定できません。";
+    for (const element of additionalFindingStates) {
+      if (element.dataset.additionalFinding === "ventricular_tachycardia") continue;
+      element.textContent = "判定不可";
+      element.dataset.state = "unavailable";
+    }
     setMessage(analysisMessage, error instanceof Error ? error.message : "分類APIに接続できません。", "error");
   } finally {
     if (currentVersion === validationVersion && selectedFile) analyzeButton.disabled = false;

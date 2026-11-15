@@ -122,6 +122,24 @@ ml/.venv/bin/python ml/train_pac_detector.py
 
 The current run used 398 PAC-coded and 149 non-PAC-coded records. Patient-grouped balanced accuracy at the default zero threshold was 0.496. The photo API applies a separate PAC-candidate margin threshold of 2.0; on out-of-fold signal predictions this produced 0.529 balanced accuracy, 0.839 precision and 0.118 recall. PAC is shown in a separate auxiliary panel and never overrides the NORMAL/AF/PVC main class. In a synthetic browser check, a NORMAL-labeled rendering was also flagged as a PAC candidate, demonstrating false positives after image extraction. Records without a PAC code are not guaranteed to be clinically PAC-free; photo extraction and PAC detection on photos remain unvalidated.
 
+### Additional single-finding signal experiments
+
+`train_additional_ecg_findings.py` creates separate binary Lead II signal detectors for 2AVB, 3AVB, ST elevation (`STE_`) and ST depression (`STD_`). Each uses official PTB-XL folds 1-8 for training and 9-10 for patient-held-out testing. The models and metrics are saved as `models/additional_ecg_findings.joblib` and `models/additional_ecg_findings_metrics.json`:
+
+```sh
+ml/.venv/bin/python ml/train_additional_ecg_findings.py
+```
+
+The held-out results are not adequate for clinical use: 2AVB has only 2 positive test records (balanced accuracy 0.880, average precision 0.125); 3AVB has 4 (0.465, 0.056); ST elevation has 6 (0.640, 0.116); and ST depression has 100 (0.503, 0.408). The public API returns these as independent experimental candidates, but they were trained and evaluated on numerical signals, not photos. False positives are expected. The current cache has no VF labels.
+
+One VT episode is annotated locally in MIT-BIH record 106. `train_vt_single_episode_prototype.py` builds an experimental window classifier from that episode and normal-rhythm windows from the same record:
+
+```sh
+ml/.venv/bin/python ml/train_vt_single_episode_prototype.py
+```
+
+It produces 11 overlapping positive windows from the single approximately 2-second episode. This is a template-like software prototype with no independent validation, not a VT classifier suitable for deployment; it is not connected to the public API. The web UI marks VT as unavailable instead of using this artifact for predictions.
+
 For the ten generated single-Lead-II images, correlation between the production-extracted waveform and paired reference ranged from 0.053 to 0.915 (median 0.743). The low PVC example indicates that extraction quality varies by waveform; these synthetic comparisons are not photo-classifier accuracy estimates.
 
 ```sh

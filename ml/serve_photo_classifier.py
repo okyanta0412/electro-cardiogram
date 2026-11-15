@@ -42,9 +42,10 @@ STATIC_FILES = {
     "/script.js": PROJECT_ROOT / "script.js",
 }
 PAC_MODEL_PATH = Path(__file__).resolve().parent / "models" / "pac_detector.joblib"
+ADDITIONAL_MODELS_PATH = Path(__file__).resolve().parent / "models" / "additional_ecg_findings.joblib"
 WARNING = (
-    "研究用試作です。615件の数値信号による患者単位評価で均衡正解率は0.723、20.7%を判定保留にしました。"
-    "写真精度は未検証です。PAC候補も別検出器の出力です。医療診断や治療判断には使用できません。"
+    "研究用試作です。主分類・追加所見・PAC候補はいずれも写真からの精度が未検証です。"
+    "医療診断や治療判断には使用できません。"
 )
 
 
@@ -66,7 +67,12 @@ def decode_uploaded_image(image_bytes: bytes) -> np.ndarray:
         raise ValueError("Could not decode image. Use JPEG, PNG, HEIC or HEIF.") from error
 
 
-def make_handler(classifier, pac_detector, pvc_af_review_margin: float = 2.0):
+def make_handler(
+    classifier,
+    pac_detector,
+    pvc_af_review_margin: float = 2.0,
+    additional_detectors: dict[str, object] | None = None,
+):
     requests_by_client: dict[str, deque[float]] = defaultdict(deque)
     rate_limit_lock = threading.Lock()
 
@@ -100,7 +106,13 @@ def make_handler(classifier, pac_detector, pvc_af_review_margin: float = 2.0):
             if request_path == "/api/health":
                 self.send_json(
                     200,
-                    {"ready": True, "labels": [*classifier.classes_.tolist(), "PAC"], "warning": WARNING},
+                    {
+                        "ready": True,
+                        "labels": [*classifier.classes_.tolist(), "REVIEW", "PAC"],
+                        "additional_findings": list((additional_detectors or {}).keys()),
+                        "vt_prediction_available": False,
+                        "warning": WARNING,
+                    },
                 )
                 return
             static_path = STATIC_FILES.get(request_path)
@@ -161,6 +173,10 @@ def make_handler(classifier, pac_detector, pvc_af_review_margin: float = 2.0):
                     if pvc_af_margin < pvc_af_review_margin:
                         predicted_label = "REVIEW"
                         review_reason = "PVCとAFのスコア差が小さいため、判定を保留しました。"
+                additional_results = {}
+                for name, detector in (additional_detectors or {}).items():
+                    score = float(detector.decision_function(waveform.reshape(1, -1))[0])
+                    additional_results[name] = {"candidate": score >= 0.0, "score": score}
                 self.send_json(
                     200,
                     {
@@ -170,6 +186,8 @@ def make_handler(classifier, pac_detector, pvc_af_review_margin: float = 2.0):
                         "pac_candidate": pac_candidate,
                         "pac_score": pac_score,
                         "pac_threshold": pac_detector["decision_threshold"],
+                        "additional_findings": additional_results,
+                        "vt_prediction_available": False,
                         "warning": WARNING,
                     },
                 )
@@ -190,14 +208,21 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--model", type=Path, default=MODEL_PATH)
     parser.add_argument("--pac-model", type=Path, default=PAC_MODEL_PATH)
+    parser.add_argument("--additional-models", type=Path, default=ADDITIONAL_MODELS_PATH)
     args = parser.parse_args()
     if not args.model.exists():
         raise SystemExit(f"Model not found: {args.model}. Run ml/monitor_photo_classifier.py first.")
     if not args.pac_model.exists():
         raise SystemExit(f"PAC model not found: {args.pac_model}. Run ml/train_pac_detector.py first.")
+    if not args.additional_models.exists():
+        raise SystemExit(
+            f"Additional-finding models not found: {args.additional_models}. "
+            "Run ml/train_additional_ecg_findings.py first."
+        )
 
     artifact = joblib.load(args.model)
     pac_detector = joblib.load(args.pac_model)
+    additional_detectors = joblib.load(args.additional_models)
     port = int(os.environ.get("PORT", args.port))
     server = ThreadingHTTPServer(
         (args.host, port),
@@ -205,6 +230,7 @@ def main() -> None:
             artifact["classifier"],
             pac_detector,
             float(artifact.get("pvc_af_review_margin", 2.0)),
+            additional_detectors,
         ),
     )
     print(f"ECG photo demo ready at http://{args.host}:{port}/")
