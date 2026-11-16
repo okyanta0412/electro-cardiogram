@@ -47,7 +47,7 @@ const PROTOTYPE_LABEL_NAMES = {
   high_grade_av_block: "高度房室ブロック",
   pacing_failure: "ペーシング不全",
   torsades_de_pointes: "TdP（トルサード・ド・ポワンツ）",
-  ventricular_fibrillation: "心室細動（VF）",
+  ventricular_fibrillation: "心室細動",
   asystole: "心静止",
 };
 const PROTOTYPE_LABEL_CODES = {
