@@ -385,49 +385,6 @@ h1 {
   line-height: 1.7;
 }
 
-.additional-result {
-  padding: 16px 0;
-  border-bottom: 1px solid var(--line);
-}
-
-.additional-result h3 {
-  margin-bottom: 10px;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.additional-result ul {
-  padding: 0;
-  margin: 0;
-  list-style: none;
-}
-
-.additional-result li {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 0;
-  border-top: 1px solid var(--line);
-  font-size: 12px;
-}
-
-.additional-result li span:last-child {
-  color: var(--muted);
-  text-align: right;
-}
-
-.additional-result li span[data-state="candidate"] {
-  color: #76551f;
-}
-
-.additional-result > p {
-  margin: 10px 0 0;
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.6;
-}
-
 .classification-list {
   margin-top: 24px;
 }

@@ -76,7 +76,6 @@ const resultState = document.querySelector("#result-state");
 const resultPlaceholder = document.querySelector(".result-placeholder");
 const resultTitle = document.querySelector("#result-title");
 const resultDescription = document.querySelector("#result-description");
-const additionalFindingStates = document.querySelectorAll("[data-additional-finding]");
 
 let selectedFile = null;
 let previewUrl = null;
@@ -109,10 +108,6 @@ function resetResult() {
   resultState.dataset.state = "idle";
   resultTitle.textContent = "解析結果はまだありません";
   resultDescription.textContent = "複数の異常所見を検出し、優先候補を主結果に表示します。";
-  for (const element of additionalFindingStates) {
-    element.textContent = "未解析";
-    element.dataset.state = "idle";
-  }
 }
 
 function readAsDataUrl(file) {
@@ -261,18 +256,6 @@ analyzeButton.addEventListener("click", async () => {
       : payload.priority_finding
       ? `基本リズム分類: ${LABEL_NAMES[payload.base_label] || payload.base_label}。${payload.warning || ""}`
       : payload.review_reason || payload.warning || "研究用試作の出力です。医療上の判断に使用しないでください。";
-    for (const element of additionalFindingStates) {
-      const finding = payload.additional_findings?.[element.dataset.additionalFinding];
-      if (!finding) {
-        if (payload.classification_mode === "labeled_photo_prototype") {
-          element.textContent = "この分類では未判定";
-          element.dataset.state = "unavailable";
-        }
-        continue;
-      }
-      element.textContent = finding.candidate ? "候補あり" : "候補スコア未満";
-      element.dataset.state = finding.candidate ? "candidate" : "below-threshold";
-    }
     setMessage(analysisMessage, "分類処理が完了しました。結果は未検証の試作出力です。", "success");
   } catch (error) {
     if (currentVersion !== validationVersion) return;
@@ -281,10 +264,6 @@ analyzeButton.addEventListener("click", async () => {
     resultState.dataset.state = "unavailable";
     resultTitle.textContent = "分類を完了できませんでした";
     resultDescription.textContent = error instanceof Error ? error.message : "分類APIに接続できません。";
-    for (const element of additionalFindingStates) {
-      element.textContent = "判定不可";
-      element.dataset.state = "unavailable";
-    }
     setMessage(analysisMessage, error instanceof Error ? error.message : "分類APIに接続できません。", "error");
   } finally {
     if (currentVersion === validationVersion && selectedFile) analyzeButton.disabled = false;
