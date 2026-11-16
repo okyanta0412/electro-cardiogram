@@ -25,6 +25,7 @@ from monitor_photo_classifier import (
     extract_features_from_waveform,
     extract_waveform_from_image,
 )
+from train_labeled_photo_prototype import extract_labeled_photo_waveform, predict_labeled_photo
 
 pillow_heif.register_heif_opener()
 
@@ -44,6 +45,7 @@ STATIC_FILES = {
 PAC_MODEL_PATH = Path(__file__).resolve().parent / "models" / "pac_detector.joblib"
 ADDITIONAL_MODELS_PATH = Path(__file__).resolve().parent / "models" / "additional_ecg_findings.joblib"
 VT_MODEL_PATH = Path(__file__).resolve().parent / "models" / "vt_single_episode_prototype.joblib"
+LABELED_PHOTO_MODEL_PATH = Path(__file__).resolve().parent / "models" / "labeled_photo_prototype.joblib"
 FINDING_PRIORITY = (
     "ventricular_tachycardia",
     "third_degree_av_block",
@@ -112,6 +114,7 @@ def make_handler(
     pvc_af_review_margin: float = 2.0,
     additional_detectors: dict[str, object] | None = None,
     vt_detector: dict[str, object] | None = None,
+    photo_prototype: dict[str, object] | None = None,
 ):
     requests_by_client: dict[str, deque[float]] = defaultdict(deque)
     rate_limit_lock = threading.Lock()
@@ -155,6 +158,10 @@ def make_handler(
                         ],
                         "finding_priority": list(FINDING_PRIORITY),
                         "vt_prediction_available": vt_detector is not None,
+                        "photo_prototype_available": photo_prototype is not None,
+                        "photo_prototype_labels": sorted(set(photo_prototype["labels"].tolist()))
+                        if photo_prototype
+                        else [],
                         "warning": WARNING,
                     },
                 )
@@ -199,7 +206,39 @@ def make_handler(
                     self.send_json(413, {"error": "Image dimensions exceed the 25 megapixel limit."})
                     return
 
-                waveform = extract_waveform_from_image(image)
+                photo_prediction = None
+                if photo_prototype is not None:
+                    try:
+                        photo_prediction = predict_labeled_photo(image, photo_prototype)
+                    except ValueError as error:
+                        photo_prediction = {"error": str(error)}
+                if photo_prediction and photo_prediction.get("label"):
+                    self.send_json(
+                        200,
+                        {
+                            "label": photo_prediction["label"],
+                            "base_label": None,
+                            "priority_finding": None,
+                            "photo_prototype_prediction": photo_prediction,
+                            "pac_candidate": None,
+                            "pac_score": None,
+                            "pac_threshold": None,
+                            "additional_findings": {},
+                            "vt_prediction_available": False,
+                            "classification_mode": "labeled_photo_prototype",
+                            "warning": (
+                                "登録済み教材画像10枚から最も近い波形を返す試作です。"
+                                "新しい画像への分類精度は未評価です。"
+                            ),
+                        },
+                    )
+                    return
+
+                waveform = (
+                    extract_labeled_photo_waveform(image)
+                    if photo_prototype is not None
+                    else extract_waveform_from_image(image)
+                )
                 features = extract_features_from_waveform(waveform).reshape(1, -1)
                 pac_score = float(
                     pac_detector["classifier"].decision_function(waveform.reshape(1, -1))[0]
@@ -228,12 +267,18 @@ def make_handler(
                         "score": vt_score,
                     }
                 priority_finding = select_priority_finding(additional_results)
+                primary_label = (
+                    photo_prediction.get("label")
+                    if photo_prediction and photo_prediction.get("label")
+                    else priority_finding or predicted_label
+                )
                 self.send_json(
                     200,
                     {
-                        "label": priority_finding or predicted_label,
+                        "label": primary_label,
                         "base_label": predicted_label,
                         "priority_finding": priority_finding,
+                        "photo_prototype_prediction": photo_prediction,
                         "review_reason": review_reason,
                         "pvc_af_margin": pvc_af_margin,
                         "pac_candidate": pac_candidate,
@@ -263,6 +308,7 @@ def main() -> None:
     parser.add_argument("--pac-model", type=Path, default=PAC_MODEL_PATH)
     parser.add_argument("--additional-models", type=Path, default=ADDITIONAL_MODELS_PATH)
     parser.add_argument("--vt-model", type=Path, default=VT_MODEL_PATH)
+    parser.add_argument("--photo-prototype", type=Path, default=LABELED_PHOTO_MODEL_PATH)
     args = parser.parse_args()
     if not args.model.exists():
         raise SystemExit(f"Model not found: {args.model}. Run ml/monitor_photo_classifier.py first.")
@@ -280,6 +326,7 @@ def main() -> None:
     pac_detector = joblib.load(args.pac_model)
     additional_detectors = joblib.load(args.additional_models)
     vt_detector = joblib.load(args.vt_model)
+    photo_prototype = joblib.load(args.photo_prototype) if args.photo_prototype.exists() else None
     port = int(os.environ.get("PORT", args.port))
     server = ThreadingHTTPServer(
         (args.host, port),
@@ -289,6 +336,7 @@ def main() -> None:
             float(artifact.get("pvc_af_review_margin", 2.0)),
             additional_detectors,
             vt_detector,
+            photo_prototype,
         ),
     )
     print(f"ECG photo demo ready at http://{args.host}:{port}/")

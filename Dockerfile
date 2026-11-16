@@ -10,8 +10,8 @@ COPY ml/requirements.txt /app/ml/requirements.txt
 RUN pip install -r /app/ml/requirements.txt
 
 COPY index.html script.js style.css /app/
-COPY ml/digitize_monitor_photo.py ml/monitor_photo_classifier.py ml/serve_photo_classifier.py /app/ml/
-COPY ml/models/monitor_photo_classifier.joblib ml/models/pac_detector.joblib ml/models/additional_ecg_findings.joblib ml/models/vt_single_episode_prototype.joblib /app/ml/models/
+COPY ml/digitize_monitor_photo.py ml/monitor_photo_classifier.py ml/serve_photo_classifier.py ml/train_labeled_photo_prototype.py /app/ml/
+COPY ml/models/monitor_photo_classifier.joblib ml/models/pac_detector.joblib ml/models/additional_ecg_findings.joblib ml/models/vt_single_episode_prototype.joblib ml/models/labeled_photo_prototype.joblib /app/ml/models/
 
 EXPOSE 10000
 

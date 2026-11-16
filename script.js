@@ -14,6 +14,12 @@ const LABEL_NAMES = {
   nonspecific_st_elevation: "ST上昇候補",
   second_degree_av_block: "2度房室ブロック候補",
   nonspecific_st_depression: "ST低下候補",
+  ventricular_escape_beat: "心室補充収縮",
+  high_grade_av_block: "高度房室ブロック",
+  pacing_failure: "ペーシング不全",
+  torsades_de_pointes: "TdP（トルサード・ド・ポワンツ）",
+  ventricular_fibrillation: "心室細動",
+  asystole: "心静止",
 };
 const LABEL_CODES = {
   NORMAL: "NORMAL",
@@ -25,6 +31,36 @@ const LABEL_CODES = {
   nonspecific_st_elevation: "STE",
   second_degree_av_block: "2AVB",
   nonspecific_st_depression: "STD",
+  ventricular_escape_beat: "ESCAPE",
+  high_grade_av_block: "HG-AVB",
+  pacing_failure: "PACE-FAIL",
+  torsades_de_pointes: "TdP",
+  ventricular_fibrillation: "VF",
+  asystole: "ASYSTOLE",
+};
+const PROTOTYPE_LABEL_NAMES = {
+  ventricular_tachycardia: "心室頻拍（VT）",
+  third_degree_av_block: "3度房室ブロック",
+  st_elevation: "ST上昇",
+  st_depression: "ST低下",
+  ventricular_escape_beat: "心室補充収縮",
+  high_grade_av_block: "高度房室ブロック",
+  pacing_failure: "ペーシング不全",
+  torsades_de_pointes: "TdP（トルサード・ド・ポワンツ）",
+  ventricular_fibrillation: "心室細動（VF）",
+  asystole: "心静止",
+};
+const PROTOTYPE_LABEL_CODES = {
+  ventricular_tachycardia: "VT",
+  third_degree_av_block: "3AVB",
+  st_elevation: "STE",
+  st_depression: "STD",
+  ventricular_escape_beat: "ESCAPE",
+  high_grade_av_block: "HG-AVB",
+  pacing_failure: "PACE-FAIL",
+  torsades_de_pointes: "TdP",
+  ventricular_fibrillation: "VF",
+  asystole: "ASYSTOLE",
 };
 
 const fileInput = document.querySelector("#ecg-photo");
@@ -37,10 +73,9 @@ const removeImageButton = document.querySelector("#remove-image");
 const analyzeButton = document.querySelector("#analyze-button");
 const analysisMessage = document.querySelector("#analysis-message");
 const resultState = document.querySelector("#result-state");
+const resultPlaceholder = document.querySelector(".result-placeholder");
 const resultTitle = document.querySelector("#result-title");
 const resultDescription = document.querySelector("#result-description");
-const pacState = document.querySelector("#pac-state");
-const pacDescription = document.querySelector("#pac-description");
 const additionalFindingStates = document.querySelectorAll("[data-additional-finding]");
 
 let selectedFile = null;
@@ -69,13 +104,11 @@ function releasePreview() {
 }
 
 function resetResult() {
+  resultPlaceholder.classList.remove("is-classified");
   resultState.textContent = "未解析";
   resultState.dataset.state = "idle";
   resultTitle.textContent = "解析結果はまだありません";
   resultDescription.textContent = "複数の異常所見を検出し、優先候補を主結果に表示します。";
-  pacState.textContent = "未解析";
-  pacState.dataset.state = "idle";
-  pacDescription.textContent = "解析後に候補状態を表示します。しきい値未満でもPACは否定できません。";
   for (const element of additionalFindingStates) {
     element.textContent = "未解析";
     element.dataset.state = "idle";
@@ -215,33 +248,39 @@ analyzeButton.addEventListener("click", async () => {
     }
     if (currentVersion !== validationVersion) return;
 
-    resultState.textContent = payload.priority_finding ? "優先所見候補" : "試作判定";
+    resultPlaceholder.classList.add("is-classified");
+    resultState.textContent = payload.photo_prototype_prediction?.label
+      ? "試作判定"
+      : payload.priority_finding ? "優先所見候補" : "試作判定";
     resultState.dataset.state = "demo";
-    resultTitle.textContent = `${LABEL_NAMES[payload.label] || "判定不能"}（${LABEL_CODES[payload.label] || payload.label || "UNREADABLE"}）`;
-    resultDescription.textContent = payload.priority_finding
+    const resultNames = payload.classification_mode === "labeled_photo_prototype" ? PROTOTYPE_LABEL_NAMES : LABEL_NAMES;
+    const resultCodes = payload.classification_mode === "labeled_photo_prototype" ? PROTOTYPE_LABEL_CODES : LABEL_CODES;
+    resultTitle.textContent = `${resultNames[payload.label] || "判定不能"}（${resultCodes[payload.label] || payload.label || "UNREADABLE"}）`;
+    resultDescription.textContent = payload.photo_prototype_prediction?.label
+      ? ""
+      : payload.priority_finding
       ? `基本リズム分類: ${LABEL_NAMES[payload.base_label] || payload.base_label}。${payload.warning || ""}`
       : payload.review_reason || payload.warning || "研究用試作の出力です。医療上の判断に使用しないでください。";
-    pacState.textContent = payload.pac_candidate ? "候補あり" : "しきい値未満";
-    pacState.dataset.state = payload.pac_candidate ? "candidate" : "below-threshold";
-    pacDescription.textContent = payload.pac_candidate
-      ? "PAC候補スコアがしきい値以上です。写真での精度は未検証です。"
-      : "しきい値以上のPAC候補はありません。PACを否定する判定ではありません。";
     for (const element of additionalFindingStates) {
       const finding = payload.additional_findings?.[element.dataset.additionalFinding];
-      if (!finding) continue;
+      if (!finding) {
+        if (payload.classification_mode === "labeled_photo_prototype") {
+          element.textContent = "この分類では未判定";
+          element.dataset.state = "unavailable";
+        }
+        continue;
+      }
       element.textContent = finding.candidate ? "候補あり" : "候補スコア未満";
       element.dataset.state = finding.candidate ? "candidate" : "below-threshold";
     }
     setMessage(analysisMessage, "分類処理が完了しました。結果は未検証の試作出力です。", "success");
   } catch (error) {
     if (currentVersion !== validationVersion) return;
+    resultPlaceholder.classList.add("is-classified");
     resultState.textContent = "判定できません";
     resultState.dataset.state = "unavailable";
     resultTitle.textContent = "分類を完了できませんでした";
     resultDescription.textContent = error instanceof Error ? error.message : "分類APIに接続できません。";
-    pacState.textContent = "判定不可";
-    pacState.dataset.state = "unavailable";
-    pacDescription.textContent = "波形を抽出できないため、PAC候補も判定できません。";
     for (const element of additionalFindingStates) {
       element.textContent = "判定不可";
       element.dataset.state = "unavailable";

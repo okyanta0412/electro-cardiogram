@@ -317,6 +317,15 @@ h1 {
   border-bottom: 1px solid var(--line);
 }
 
+.result-placeholder.is-classified {
+  min-height: 0;
+  padding: 14px 0;
+}
+
+.result-placeholder.is-classified p:empty {
+  display: none;
+}
+
 .placeholder-rule {
   display: block;
   width: 28px;

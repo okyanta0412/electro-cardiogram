@@ -162,3 +162,13 @@ ml/.venv/bin/python ml/monitor_roundtrip.py
 ```
 
 This is only a code-path/quantization check. Since the same script draws and reads the monitor image using a known scale, the metrics do not measure performance on phone photos or real monitor screenshots. Validation on independent real-monitor images is still required; this prototype is not for clinical use.
+
+### Local labeled-photo prototype
+
+Place labeled teaching images under `data/labeled_photos/<class-name>/` and train the local nearest-reference prototype:
+
+```sh
+ml/.venv/bin/python ml/train_labeled_photo_prototype.py
+```
+
+The trainer extracts a dark waveform from each graph-paper image and fits a one-nearest-neighbor cosine model. The current set has 10 classes with one image each. Its 10/10 resubstitution match only confirms that each stored image retrieves itself; it does not measure accuracy on new images. When `models/labeled_photo_prototype.joblib` exists, the local API returns the nearest labeled teaching image as the primary prototype result. The labeled photos and trained artifact are ignored by Git and are not included in the public Docker image.
