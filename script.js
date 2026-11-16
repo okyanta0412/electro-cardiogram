@@ -9,7 +9,7 @@ const LABEL_NAMES = {
   PVC: "心室期外収縮",
   PAC: "心房性期外収縮候補",
   REVIEW: "判定保留（AF/PVC要確認）",
-  ventricular_tachycardia: "心室頻拍（VT）候補",
+  ventricular_tachycardia: "心室頻拍",
   third_degree_av_block: "3度房室ブロック候補",
   nonspecific_st_elevation: "ST上昇候補",
   second_degree_av_block: "2度房室ブロック候補",
@@ -39,7 +39,7 @@ const LABEL_CODES = {
   asystole: "ASYSTOLE",
 };
 const PROTOTYPE_LABEL_NAMES = {
-  ventricular_tachycardia: "心室頻拍（VT）",
+  ventricular_tachycardia: "心室頻拍",
   third_degree_av_block: "3度房室ブロック",
   st_elevation: "ST上昇",
   st_depression: "ST低下",
