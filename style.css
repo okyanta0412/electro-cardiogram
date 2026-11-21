@@ -349,6 +349,26 @@ h1 {
   line-height: 1.8;
 }
 
+.nursing-guidance {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid #d8b8b3;
+  background: #f8efed;
+}
+
+.nursing-guidance h3 {
+  margin: 0 0 8px;
+  color: #713e39;
+  font-size: 14px;
+}
+
+.nursing-guidance ul {
+  padding-left: 1.3em;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
 .secondary-result {
   padding: 16px 0;
   border-bottom: 1px solid var(--line);

@@ -62,6 +62,136 @@ const PROTOTYPE_LABEL_CODES = {
   ventricular_fibrillation: "VF",
   asystole: "ASYSTOLE",
 };
+const NURSING_GUIDANCE = {
+  ventricular_tachycardia: [
+    "救急カート、ルート確保・気管挿管の準備",
+    "血圧が保たれていない場合は人を集め、救命処置",
+    "早急にドクターコール",
+  ],
+  VT: [
+    "救急カート、ルート確保・気管挿管の準備",
+    "血圧が保たれていない場合は人を集め、救命処置",
+    "早急にドクターコール",
+  ],
+  third_degree_av_block: [
+    "血圧が保たれていない場合は人を集め、救命処置",
+    "早急にドクターコール",
+    "救急カートの準備",
+  ],
+  "3AVB": [
+    "血圧が保たれていない場合は人を集め、救命処置",
+    "早急にドクターコール",
+    "救急カートの準備",
+  ],
+  nonspecific_st_elevation: [
+    "救急カート、ルート確保、緊急治療に必要な薬品の準備",
+    "血圧が保たれていない場合は人を集め、救命処置",
+    "早急にドクターコール",
+    "医師の指示により、亜硝酸薬などを舌下投与",
+  ],
+  st_elevation: [
+    "救急カート、ルート確保、緊急治療に必要な薬品の準備",
+    "血圧が保たれていない場合は人を集め、救命処置",
+    "早急にドクターコール",
+    "医師の指示により、亜硝酸薬などを舌下投与",
+  ],
+  STE: [
+    "救急カート、ルート確保、緊急治療に必要な薬品の準備",
+    "血圧が保たれていない場合は人を集め、救命処置",
+    "早急にドクターコール",
+    "医師の指示により、亜硝酸薬などを舌下投与",
+  ],
+  second_degree_av_block: [
+    "血圧が保たれていない場合は人を集め、救命処置",
+    "早急にドクターコール",
+    "救急カートの準備",
+  ],
+  "2AVB": [
+    "血圧が保たれていない場合は人を集め、救命処置",
+    "早急にドクターコール",
+    "救急カートの準備",
+  ],
+  nonspecific_st_depression: [
+    "救急カート、ルート確保、緊急治療に必要な薬品の準備",
+    "血圧が保たれていない場合は人を集め、救命処置",
+    "早急にドクターコール",
+    "医師の指示により、亜硝酸薬などを舌下投与",
+  ],
+  st_depression: [
+    "救急カート、ルート確保、緊急治療に必要な薬品の準備",
+    "血圧が保たれていない場合は人を集め、救命処置",
+    "早急にドクターコール",
+    "医師の指示により、亜硝酸薬などを舌下投与",
+  ],
+  STD: [
+    "救急カート、ルート確保、緊急治療に必要な薬品の準備",
+    "血圧が保たれていない場合は人を集め、救命処置",
+    "早急にドクターコール",
+    "医師の指示により、亜硝酸薬などを舌下投与",
+  ],
+  ventricular_escape_beat: [
+    "血圧が保たれていない場合は人を集め、救命処置",
+    "早急にドクターコール",
+    "救急カート、ルート確保・気管挿管の準備",
+  ],
+  ESCAPE: [
+    "血圧が保たれていない場合は人を集め、救命処置",
+    "早急にドクターコール",
+    "救急カート、ルート確保・気管挿管の準備",
+  ],
+  high_grade_av_block: [
+    "血圧が保たれていない場合は人を集め、救命処置",
+    "早急にドクターコール",
+    "救急カートの準備",
+  ],
+  "HG-AVB": [
+    "血圧が保たれていない場合は人を集め、救命処置",
+    "早急にドクターコール",
+    "救急カートの準備",
+  ],
+  pacing_failure: [
+    "新しく出現した波形を印刷",
+    "血圧が保たれていない場合は人を集め、救命処置",
+    "早急にドクターコール",
+    "ペースメーカーをチェックし対外式ペースメーカーの準備",
+  ],
+  "PACE-FAIL": [
+    "新しく出現した波形を印刷",
+    "血圧が保たれていない場合は人を集め、救命処置",
+    "早急にドクターコール",
+    "ペースメーカーをチェックし対外式ペースメーカーの準備",
+  ],
+  torsades_de_pointes: [
+    "救急カート、ルート確保・気管挿管の準備",
+    "血圧が保たれていない場合は人を集め、救命処置",
+    "早急にドクターコール",
+  ],
+  TdP: [
+    "救急カート、ルート確保・気管挿管の準備",
+    "血圧が保たれていない場合は人を集め、救命処置",
+    "早急にドクターコール",
+  ],
+  ventricular_fibrillation: [
+    "人を集めて早急に救命処置",
+    "早急にドクターコール",
+    "救急カート、ルート確保、気管挿管の準備",
+  ],
+  VF: [
+    "人を集めて早急に救命処置",
+    "早急にドクターコール",
+    "救急カート、ルート確保、気管挿管の準備",
+  ],
+  asystole: [
+    "人を集めて早急に救命処置",
+    "早急にドクターコール",
+    "救急カート、ルート確保・気管挿管の準備",
+  ],
+  ASYSTOLE: [
+    "人を集めて早急に救命処置",
+    "早急にドクターコール",
+    "救急カート、ルート確保・気管挿管の準備",
+  ],
+};
 
 const fileInput = document.querySelector("#ecg-photo");
 const inputMessage = document.querySelector("#input-message");
@@ -76,6 +206,8 @@ const resultState = document.querySelector("#result-state");
 const resultPlaceholder = document.querySelector(".result-placeholder");
 const resultTitle = document.querySelector("#result-title");
 const resultDescription = document.querySelector("#result-description");
+const nursingGuidance = document.querySelector("#nursing-guidance");
+const nursingGuidanceList = document.querySelector("#nursing-guidance-list");
 
 let selectedFile = null;
 let previewUrl = null;
@@ -104,10 +236,25 @@ function releasePreview() {
 
 function resetResult() {
   resultPlaceholder.classList.remove("is-classified");
+  nursingGuidance.hidden = true;
+  nursingGuidanceList.replaceChildren();
   resultState.textContent = "未解析";
   resultState.dataset.state = "idle";
   resultTitle.textContent = "解析結果はまだありません";
   resultDescription.textContent = "複数の異常所見を検出し、優先候補を主結果に表示します。";
+}
+
+function showNursingGuidance(label) {
+  const actions = NURSING_GUIDANCE[label];
+  nursingGuidanceList.replaceChildren();
+  nursingGuidance.hidden = !actions;
+  if (!actions) return;
+
+  for (const action of actions) {
+    const item = document.createElement("li");
+    item.textContent = action;
+    nursingGuidanceList.append(item);
+  }
 }
 
 function readAsDataUrl(file) {
@@ -217,6 +364,7 @@ analyzeButton.addEventListener("click", async () => {
   resultState.dataset.state = "working";
   resultTitle.textContent = "画像を分類しています";
   resultDescription.textContent = "Lead IIの波形抽出と試作モデルの推論を実行中です。";
+  showNursingGuidance(null);
   setMessage(analysisMessage, "分類APIへ画像を送信しています…", "checking");
 
   try {
@@ -251,6 +399,7 @@ analyzeButton.addEventListener("click", async () => {
     const resultNames = payload.classification_mode === "labeled_photo_prototype" ? PROTOTYPE_LABEL_NAMES : LABEL_NAMES;
     const resultCodes = payload.classification_mode === "labeled_photo_prototype" ? PROTOTYPE_LABEL_CODES : LABEL_CODES;
     resultTitle.textContent = `${resultNames[payload.label] || "判定不能"}（${resultCodes[payload.label] || payload.label || "UNREADABLE"}）`;
+    showNursingGuidance(payload.label);
     resultDescription.textContent = payload.photo_prototype_prediction?.label
       ? ""
       : payload.priority_finding
